@@ -1,4 +1,7 @@
 .env
-.streamlit
-chroma_data
-venv
+.streamlit/
+chroma_data/
+venv/
+*.pyc
+__pycache__/
+frontend/
