@@ -1,0 +1,4 @@
+.env
+.streamlit
+chroma_data
+venv
