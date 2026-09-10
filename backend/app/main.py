@@ -6,14 +6,26 @@ from fastapi.responses import StreamingResponse, JSONResponse
 
 from app.config import settings
 from app.auth.clerk import get_current_user, AuthenticatedUser
-from app.db.mongo import init_mongo_connection, save_study_pack, save_document_metadata, get_study_packs_by_user
+from app.db.mongo import (
+    init_mongo_connection,
+    save_study_pack,
+    save_document,
+    get_documents,
+    save_chunks,
+    get_chunks_by_document,
+    save_user_document,
+    get_user_documents,
+    get_study_packs_by_user,
+    save_quiz_result,
+    get_user_quiz_history
+)
 from app.rag.parser import parse_pdf_bytes, clean_text
 from app.rag.splitter import split_text_into_chunks
 from app.rag.store import get_vector_store
 from app.graph.workflow import run_study_pack_pipeline
 from app.exports.pdf_engine import generate_study_pack_pdf
 from app.exports.csv_engine import generate_anki_csv
-from app.schemas.request import IngestTextRequest, GenerateRequest, UploadResponse
+from app.schemas.request import IngestTextRequest, GenerateRequest, UploadResponse, QuizSubmitRequest
 from app.schemas.study_pack import StudyPack, MCQItem
 
 # Setup logging
@@ -28,11 +40,11 @@ app = FastAPI(
 
 # Setup CORS
 allowed_origins = [
-    settings.FRONTEND_URL,
-    "http://localhost:8501",
-    "http://127.0.0.1:8501",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    settings.FRONTEND_URL,
     "*"
 ]
 
@@ -47,35 +59,29 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing Study Guide Generator backend...")
+    """Initializes MongoDB connection and creates multi-tenant indexes on startup."""
+    logger.info("Starting Study Guide Generator API backend...")
     await init_mongo_connection()
-    get_vector_store()
-    logger.info("Backend services initialized successfully.")
 
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Returns the health status of all core backend services."""
-    return {
-        "status": "healthy",
-        "service": "Study Guide Generator API",
-        "version": "1.0.0",
-        "gemini_configured": bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your_gemini_api_key_here"),
-        "groq_configured": bool(settings.GROQ_API_KEY and settings.GROQ_API_KEY != "your_groq_api_key_here"),
-        "mongo_configured": bool(settings.MONGO_URL or settings.MONGO_URL_local)
-    }
+    """Health check endpoint to verify backend status."""
+    return {"status": "ok", "service": "Study Guide Generator API", "auth": "Clerk JWT Enabled"}
 
 
-@app.post("/api/upload", response_model=UploadResponse, tags=["RAG Ingestion"])
-async def upload_document(
+@app.post("/api/upload", response_model=UploadResponse, tags=["Document Ingestion"])
+async def upload_file(
     file: Optional[UploadFile] = File(None),
     raw_text: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
     user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
-    Uploads and parses a PDF (enforcing strict 15-page limit) or raw lecture text,
-    splits into semantic chunks, and indexes into the user's multi-tenant ChromaDB store.
+    Uploads and parses a PDF (enforcing strict 150-page limit) or raw lecture text,
+    detects chapters, splits into sequential semantic chunks (1500 chars / 200 overlap),
+    saves all chunks & page metadata into MongoDB 'chunks' and 'documents' collections,
+    and indexes into the user's multi-tenant ChromaDB store.
     """
     user_id = user.user_id
     doc_title = title or (file.filename if file else "Pasted Lecture Notes")
@@ -83,6 +89,8 @@ async def upload_document(
 
     pages_data = []
     page_count = 1
+    detected_chapters = []
+    full_text = ""
 
     if file:
         if not file.filename.lower().endswith(".pdf"):
@@ -91,35 +99,55 @@ async def upload_document(
                 detail="Only PDF files are supported for file upload. Use raw_text for other notes."
             )
         pdf_bytes = await file.read()
-        full_text, pages_data, page_count = parse_pdf_bytes(pdf_bytes, filename=file.filename)
+        full_text, pages_data, page_count, detected_chapters = parse_pdf_bytes(pdf_bytes, filename=file.filename)
     elif raw_text and raw_text.strip():
         cleaned = clean_text(raw_text)
         if not cleaned:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provided text is empty.")
-        pages_data = [{"page_number": 1, "text": cleaned, "source": doc_title}]
+        pages_data = [{"page_number": 1, "text": cleaned, "source": doc_title, "chapter_title": doc_title}]
         page_count = 1
+        detected_chapters = [doc_title]
+        full_text = cleaned
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Please provide either a PDF file or raw_text to ingest."
         )
 
-    # Chunk the text with 150-page optimization
-    chunks = split_text_into_chunks(pages_data, chunk_size=1500, chunk_overlap=200)
+    # 1. Chunk the text with 150-page optimization and segment distribution
+    chunks = split_text_into_chunks(pages_data, chunk_size=1500, chunk_overlap=200, n_target_segments=6)
 
-    # Index into ChromaDB
+    # 2. Batch Insert all chunks into MongoDB 'chunks' collection in Studypack_generator
+    db_chunks = []
+    for idx, c in enumerate(chunks):
+        db_chunks.append({
+            "document_id": str(doc_id),
+            "user_id": user_id,
+            "chunk_index": idx,
+            "page_number": c.get("page_number", 1),
+            "text": c.get("text", ""),
+            "chapter_title": c.get("chapter_title", ""),
+            "segment_index": c.get("segment_index", 0),
+            "char_count": len(c.get("text", ""))
+        })
+    await save_chunks(db_chunks)
+
+    # 3. Index into ChromaDB vector store
     store = get_vector_store()
     chunk_count = store.add_documents(user_id=user_id, document_id=doc_id, chunks=chunks)
 
-    # Record metadata
-    doc_metadata = {
-        "document_id": doc_id,
-        "title": doc_title,
-        "page_count": page_count,
-        "chunk_count": chunk_count,
-        "source_type": "pdf" if file else "raw_text"
-    }
-    await save_document_metadata(user_id=user_id, doc_metadata=doc_metadata)
+    # 4. Record multi-tenant document metadata & full page data in MongoDB 'documents' collection
+    await save_document(
+        user_id=user_id,
+        document_id=doc_id,
+        filename=file.filename if file else doc_title,
+        title=doc_title,
+        page_count=page_count,
+        chunk_count=chunk_count,
+        chapters=detected_chapters,
+        clean_text=full_text,
+        pages_data=pages_data
+    )
 
     return UploadResponse(
         status="success",
@@ -127,8 +155,16 @@ async def upload_document(
         title=doc_title,
         page_count=page_count,
         chunk_count=chunk_count,
-        message=f"Successfully parsed {page_count} pages and indexed {chunk_count} chunks for user."
+        chapters=detected_chapters,
+        message=f"Successfully parsed {page_count} pages and indexed {chunk_count} chunks across {len(detected_chapters)} chapters in MongoDB."
     )
+
+
+@app.get("/api/documents", tags=["Documents"])
+async def get_documents_endpoint(user: AuthenticatedUser = Depends(get_current_user)):
+    """Retrieves all documents belonging strictly to the authenticated user from MongoDB."""
+    docs = await get_documents(user.user_id)
+    return {"status": "success", "documents": docs}
 
 
 @app.post("/api/generate", response_model=StudyPack, tags=["Study Pack Generation"])
@@ -145,6 +181,7 @@ async def generate_study_guide(
 
     result = await run_study_pack_pipeline(
         user_id=user_id,
+        document_id=request.document_id,
         difficulty=request.difficulty,
         topic=request.topic,
         custom_instructions=request.custom_instructions
@@ -156,8 +193,8 @@ async def generate_study_guide(
             detail="Failed to generate study pack. Please check that material is uploaded and try again."
         )
 
-    # Persist in MongoDB / fallback
-    await save_study_pack(user_id=user_id, study_pack_data=result)
+    # Persist in MongoDB / study_packs collection scoped by user_id and document_id
+    await save_study_pack(user_id=user_id, study_pack_data=result, document_id=request.document_id)
 
     return result
 
@@ -167,6 +204,33 @@ async def get_history(user: AuthenticatedUser = Depends(get_current_user)):
     """Retrieves previously generated study packs for the authenticated user."""
     packs = await get_study_packs_by_user(user.user_id)
     return {"status": "success", "study_packs": packs}
+
+
+@app.post("/api/quiz/submit", tags=["Quiz History"])
+async def submit_quiz(
+    request: QuizSubmitRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Records student interactive quiz submissions, scores, and completion status
+    in MongoDB collection 'user_quiz_history' strictly scoped by user_id.
+    """
+    record = await save_quiz_result(
+        user_id=user.user_id,
+        pack_id=request.pack_id,
+        document_id=request.document_id,
+        score=request.score,
+        total=request.total,
+        answers=request.answers
+    )
+    return {"status": "success", "quiz_record": record}
+
+
+@app.get("/api/quiz/history", tags=["Quiz History"])
+async def get_quiz_history(user: AuthenticatedUser = Depends(get_current_user)):
+    """Retrieves past quiz attempts and scores for the authenticated user."""
+    history = await get_user_quiz_history(user.user_id)
+    return {"status": "success", "quiz_history": history}
 
 
 @app.post("/api/export/pdf", tags=["Exports"])

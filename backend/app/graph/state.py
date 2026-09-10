@@ -8,6 +8,7 @@ class AgentState(TypedDict):
     """
     messages: List[BaseMessage]
     user_id: str
+    document_id: Optional[str]
     difficulty: str  # "Beginner" | "Intermediate" | "Advanced"
     topic: Optional[str]
     custom_instructions: Optional[str]

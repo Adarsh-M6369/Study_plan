@@ -59,6 +59,7 @@ def get_study_pack_graph():
 
 async def run_study_pack_pipeline(
     user_id: str,
+    document_id: Optional[str] = None,
     difficulty: str = "Intermediate",
     topic: Optional[str] = None,
     custom_instructions: Optional[str] = None
@@ -70,6 +71,7 @@ async def run_study_pack_pipeline(
     initial_state: AgentState = {
         "messages": [],
         "user_id": user_id,
+        "document_id": document_id,
         "difficulty": difficulty,
         "topic": topic or "General Lecture Notes",
         "custom_instructions": custom_instructions,

@@ -30,11 +30,12 @@ except ImportError:
 def split_text_into_chunks(
     pages_data: List[Dict[str, Any]],
     chunk_size: int = 1500,
-    chunk_overlap: int = 200
+    chunk_overlap: int = 200,
+    n_target_segments: int = 6
 ) -> List[Dict[str, Any]]:
     """
-    Chunks page texts recursively while retaining metadata such as page number and source.
-    Optimized with chunk_size=1500, chunk_overlap=200 for up to 150-page lecture documents.
+    Chunks page texts recursively while retaining metadata such as page number, chapter title,
+    source, and assigned equidistant segment index (0 to N-1) for whole-document coverage.
     """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -42,13 +43,18 @@ def split_text_into_chunks(
         separators=["\n\n", "\n", ". ", "? ", "! ", " ", ""]
     )
 
+    total_pages = max(1, len(pages_data))
     all_chunks = []
     chunk_id = 0
 
-    for page_info in pages_data:
+    for idx, page_info in enumerate(pages_data):
         text = page_info.get("text", "")
         page_num = page_info.get("page_number", 1)
         source = page_info.get("source", "document")
+        chapter_title = page_info.get("chapter_title") or f"Section {page_num}"
+
+        # Calculate equidistant document segment (0 to n_target_segments-1)
+        segment_index = min(n_target_segments - 1, int((idx / total_pages) * n_target_segments))
 
         if not text.strip():
             continue
@@ -65,8 +71,11 @@ def split_text_into_chunks(
                 "text": cleaned_chunk,
                 "page_number": page_num,
                 "source": source,
+                "chapter_title": chapter_title,
+                "segment_index": segment_index,
+                "total_segments": n_target_segments,
                 "chunk_index": sub_idx
             })
 
-    logger.info(f"Split {len(pages_data)} pages into {len(all_chunks)} semantic chunks.")
+    logger.info(f"Split {len(pages_data)} pages into {len(all_chunks)} semantic chunks across {n_target_segments} equidistant segments.")
     return all_chunks
