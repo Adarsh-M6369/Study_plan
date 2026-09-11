@@ -64,28 +64,39 @@ def is_academic_query(message: str) -> bool:
 
 async def query_all_mcp_connectors(query: str, user_id: str) -> List[Dict[str, Any]]:
     """
-    Queries active Model Context Protocol (MCP) connectors for real-time academic sources,
-    including Wikipedia encyclopedic summaries, ArXiv research papers, and NewsAPI scientific feeds.
+    Queries active Model Context Protocol (MCP) connectors only when relevant to specific technical/scientific lookups.
+    Avoids searching Wikipedia for generic conversational study commands like 'tell me the study plan'.
     """
     sources = []
+    clean_q = query.strip().lower()
+
+    # Skip MCP lookups for general conversational study requests
+    generic_study_phrases = ["study plan", "how to study", "give me a plan", "revision schedule", "timetable", "tips for exam", "how to prepare"]
+    if any(p in clean_q for p in generic_study_phrases) and len(clean_q.split()) <= 6:
+        return sources
+
     user_connectors = await get_user_connectors(user_id)
     active_connector_ids = {c["connector_id"]: c.get("config", {}) for c in user_connectors if c.get("enabled", False)}
 
-    # Always query Wikipedia MCP for concept definitions if query has substantial terms
-    try:
-        wiki_res = await run_mcp_connector_tool("wikipedia_connector", "search_wikipedia", {"query": query}, active_connector_ids.get("wikipedia_connector", {}))
-        if wiki_res.get("summary"):
-            sources.append({
-                "type": "Wikipedia MCP",
-                "title": wiki_res.get("title", "Wikipedia Article"),
-                "snippet": wiki_res.get("summary"),
-                "url": wiki_res.get("url", "")
-            })
-    except Exception as e:
-        logger.warning(f"Wikipedia MCP query failed: {e}")
+    # Query Wikipedia only for specific concepts/topics
+    if any(clean_q.startswith(w) for w in ["what is", "define", "who is", "explain"]) or "wikipedia" in clean_q or "wikipedia_connector" in active_connector_ids:
+        # Extract core subject
+        concept = re.sub(r"(?i)^(what is|what are|define|explain|who is|tell me about)\s+", "", query).strip(" ?.!:")
+        if concept and len(concept.split()) <= 5:
+            try:
+                wiki_res = await run_mcp_connector_tool("wikipedia_connector", "search_wikipedia", {"query": concept}, active_connector_ids.get("wikipedia_connector", {}))
+                if wiki_res.get("summary") and "represents a foundational academic concept" not in wiki_res.get("summary", ""):
+                    sources.append({
+                        "type": "Wikipedia MCP",
+                        "title": wiki_res.get("title", concept.title()),
+                        "snippet": wiki_res.get("summary"),
+                        "url": wiki_res.get("url", "")
+                    })
+            except Exception as e:
+                logger.warning(f"Wikipedia MCP query failed: {e}")
 
-    # Query ArXiv MCP if query mentions science/tech/math/research or arxiv is enabled
-    is_stem = any(w in query.lower() for w in ["physics", "quantum", "algorithm", "neural", "math", "model", "paper", "research", "arxiv", "theorem", "system", "computing"])
+    # Query ArXiv MCP if query mentions science/tech/math/research/papers
+    is_stem = any(w in clean_q for w in ["arxiv", "research paper", "preprints", "scientific literature", "quantum", "neural network", "transformer model", "relativity"])
     if "arxiv_connector" in active_connector_ids or is_stem:
         try:
             arxiv_res = await run_mcp_connector_tool("arxiv_connector", "search_arxiv_papers", {"query": query, "max_results": 2}, active_connector_ids.get("arxiv_connector", {}))
@@ -101,7 +112,7 @@ async def query_all_mcp_connectors(query: str, user_id: str) -> List[Dict[str, A
             logger.warning(f"ArXiv MCP query failed: {e}")
 
     # Query NewsAPI MCP if news_connector is enabled or query asks for recent developments
-    if "news_connector" in active_connector_ids or any(w in query.lower() for w in ["news", "discovery", "recent", "current", "breakthrough"]):
+    if "news_connector" in active_connector_ids or any(w in clean_q for w in ["latest news", "current discovery", "recent breakthrough"]):
         try:
             news_res = await run_mcp_connector_tool("news_connector", "get_latest_news", {"query": query}, active_connector_ids.get("news_connector", {}))
             articles = news_res.get("articles", [])
@@ -120,18 +131,19 @@ async def query_all_mcp_connectors(query: str, user_id: str) -> List[Dict[str, A
 
 async def query_user_documents(query: str, user_id: str, document_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    Searches ChromaDB vector store and MongoDB chunks for the user's uploaded lecture notes.
+    Searches ChromaDB vector store and MongoDB chunks for the user's uploaded lecture notes when relevant.
     """
     doc_sources = []
     try:
         store = get_vector_store()
-        chunks = store.search(user_id=user_id, query_text=query, n_results=4)
+        chunks = store.search(user_id=user_id, query_text=query, n_results=3)
         for c in chunks:
-            doc_sources.append({
-                "type": "Uploaded Course Notes",
-                "title": f"Page {c.get('metadata', {}).get('page_number', 'N/A')} ({c.get('metadata', {}).get('chapter_title', 'Lecture Chunk')})",
-                "snippet": c.get("text", "")[:350] + "..."
-            })
+            if c.get("text") and len(c.get("text", "").strip()) > 30:
+                doc_sources.append({
+                    "type": "Uploaded Course Notes",
+                    "title": f"Page {c.get('metadata', {}).get('page_number', 'N/A')} ({c.get('metadata', {}).get('chapter_title', 'Lecture Chunk')})",
+                    "snippet": c.get("text", "")[:300] + "..."
+                })
     except Exception as e:
         logger.warning(f"Vector search failed: {e}")
 
@@ -145,8 +157,8 @@ async def process_study_chat(
     document_id: Optional[str] = None
 ) -> StudyChatResponse:
     """
-    Processes student chat inquiries with strict academic guardrails,
-    real-time MCP tools retrieval (Wikipedia, ArXiv, NewsAPI), and LLM Socratic tutoring.
+    Processes student chat inquiries directly with the LLM with strict academic guardrails,
+    supplemented by active MCP tools and course notes when relevant.
     """
     history = history or []
 
@@ -157,12 +169,12 @@ async def process_study_chat(
             "I am your dedicated **AI Academic Study Tutor & Curriculum Assistant**.\n\n"
             "I can only assist with **educational, scientific, curriculum, research, exam preparation, and study guide questions**.\n\n"
             "**Here are a few things you can ask me:**\n"
-            "- *\"Explain the key mechanisms of Cellular Respiration / Quantum Entanglement\"*\n"
+            "- *\"Create a customized 4-week study plan for my biology exam\"*\n"
+            "- *\"Explain the key mechanisms of Cellular Respiration with analogies\"*\n"
             "- *\"Summarize Chapter 3 of my uploaded lecture notes\"*\n"
             "- *\"What are the core differences between TCP and UDP with examples?\"*\n"
-            "- *\"Search ArXiv research papers on Transformer Architectures\"*\n"
-            "- *\"Generate 3 practice conceptual questions on Thermodynamics\"*\n\n"
-            "Please ask an academic or course-related question to continue!"
+            "- *\"Generate 3 practice conceptual questions with model solutions\"*\n\n"
+            "Please ask an academic or study-related question to continue!"
         )
         return StudyChatResponse(
             reply=rejection_reply,
@@ -175,33 +187,32 @@ async def process_study_chat(
     doc_sources = await query_user_documents(query=message, user_id=user_id, document_id=document_id)
     all_sources = mcp_sources + doc_sources
 
-    # 3. Format Context for LLM
+    # 3. Format Context for LLM if present
     context_blocks = []
     if doc_sources:
-        context_blocks.append("--- UPLOADED LECTURE NOTES & CHUNKS ---")
+        context_blocks.append("--- RELEVANT UPLOADED LECTURE NOTES ---")
         for s in doc_sources:
             context_blocks.append(f"[{s['title']}]: {s['snippet']}")
 
     if mcp_sources:
-        context_blocks.append("--- LIVE MCP CONNECTORS (WIKIPEDIA / ARXIV / NEWSAPI) ---")
+        context_blocks.append("--- LIVE MCP KNOWLEDGE SOURCES ---")
         for s in mcp_sources:
             context_blocks.append(f"[{s['type']} - {s['title']}]: {s['snippet']}")
 
-    combined_context = "\n\n".join(context_blocks) if context_blocks else "No external notes found for this topic."
+    context_section = "\n\n".join(context_blocks) if context_blocks else ""
 
-    # 4. Construct Socratic Academic Prompt
+    # 4. Construct Socratic Academic Prompt for Direct LLM Intelligence
     system_prompt = (
-        "You are the elite AI Academic Study Tutor & Curriculum Specialist in the StudyGuide AI platform.\n"
-        "Your mission is to provide rigorous, clear, pedagogically structured, and engaging educational explanations.\n\n"
-        "GUIDELINES:\n"
-        "1. Strictly answer the student's academic or study question with clear headings, bullet points, intuitive analogies, formulas, and step-by-step logic.\n"
-        "2. Ground your explanations in the provided Live MCP Tools (Wikipedia, ArXiv, NewsAPI) and Uploaded Course Notes when available.\n"
-        "3. Explicitly mention references to sources when quoting facts (e.g. `[Wikipedia MCP]`, `[ArXiv Research]`, `[Lecture Notes]`).\n"
-        "4. If relevant, include a quick '💡 Key Takeaway' and a '🎯 Practice Recall Question' at the end to deepen learning.\n"
-        "5. Maintain a professional, encouraging, academic Socratic tutor tone in clean GitHub-flavored Markdown."
+        "You are an elite, highly knowledgeable AI Academic Professor and Study Tutor.\n"
+        "Your goal is to answer the student's study question directly, intelligently, and comprehensively from your own knowledge.\n\n"
+        "CORE RULES:\n"
+        "1. Provide structured, engaging, and thorough academic answers with clear Markdown formatting (tables, bullet points, step-by-step breakdowns, bold highlights, formulas).\n"
+        "2. Be actionable and pedagogical (e.g. explain the 'why' and 'how', provide study frameworks like Pomodoro, Active Recall, Feynman Technique, spaced repetition).\n"
+        "3. DO NOT output robotic boilerplate phrases like 'Based on the entry in Wikipedia MCP' or 'According to Model Context Protocol'. Speak naturally and authoritatively as an inspiring academic tutor.\n"
+        "4. If relevant uploaded course notes are provided in the context, integrate and reference their specific topics smoothly.\n"
+        "5. Conclude with a helpful '💡 Tutor Tip' or '🎯 Practice Check' when appropriate."
     )
 
-    # Build conversation messages
     llm_messages = [SystemMessage(content=system_prompt)]
 
     # Include recent conversation turns (up to last 6)
@@ -211,15 +222,11 @@ async def process_study_chat(
         elif h.role == "assistant":
             llm_messages.append(AIMessage(content=h.content))
 
-    # Append current turn with MCP knowledge
-    user_turn_content = (
-        f"Student Academic Query: {message}\n\n"
-        f"--- CONTEXT & MCP SOURCES ---\n"
-        f"{combined_context}\n"
-        f"-----------------------------\n\n"
-        f"Please provide a comprehensive academic study explanation."
-    )
-    llm_messages.append(HumanMessage(content=user_turn_content))
+    user_prompt_text = f"Student Question: {message}"
+    if context_section:
+        user_prompt_text += f"\n\n{context_section}"
+
+    llm_messages.append(HumanMessage(content=user_prompt_text))
 
     llm = get_llm_with_fallback()
     reply_text = ""
@@ -232,25 +239,29 @@ async def process_study_chat(
             logger.error(f"Error calling LLM for study chat: {e}")
             reply_text = ""
 
-    # Resilient fallback if LLM offline or keys unconfigured
     if not reply_text:
-        source_bullets = "\n".join([f"- **{s['type']}**: {s['title']} - {s['snippet'][:150]}..." for s in all_sources[:4]])
-        reply_text = f"""### 📚 Academic Concept Analysis: {clean_topic_title(message)}
+        reply_text = f"""### 📚 Study Plan & Strategy Guide
 
-Based on your academic inquiry and connected Model Context Protocol (MCP) knowledge streams:
+Here is a structured academic study framework designed for optimal retention and exam success:
 
-#### 1. Core Principles & Overview
-{mcp_sources[0]['snippet'] if mcp_sources else f"Foundational study analysis and core mechanisms relating to {message}."}
+#### 1. 🎯 Diagnostic Assessment & Goal Setting
+- **Identify Core Syllabus Scope**: Break down major chapters and determine high-weight topics.
+- **Set SMART Milestones**: Allocate specific study hours to challenging concepts.
 
-#### 2. Key Academic Takeaways & Context
-- **Conceptual Depth**: Concepts are structured around core definitions, empirical evidence, and sequential problem-solving.
-- **Active References**: Real-time knowledge retrieved across your connected MCP endpoints.
+#### 2. ⏳ Structured Weekly Routine
+| Phase | Strategy | Daily Time |
+| :--- | :--- | :--- |
+| **Concept Learning** | Active reading, Cornell note-taking & Feynman explanation | 45-60 mins |
+| **Practice & Recall** | Self-testing, flashcards & solving past exam problems | 30-45 mins |
+| **Spaced Review** | Reviewing difficult concepts from previous sessions | 15-20 mins |
 
-#### 3. Connected MCP Sources & Literature
-{source_bullets if source_bullets else "- General Academic Curriculum Knowledge Base"}
+#### 3. 💡 High-Efficiency Study Techniques
+- **Active Recall**: Test yourself by closing the textbook and writing down core principles from memory.
+- **Spaced Repetition**: Revisit difficult formulas and terms at intervals (Day 1, Day 3, Day 7).
+- **Pomodoro Technique**: 25 minutes of deep focus followed by a 5-minute break.
 
 ---
-💡 **Tutor Tip**: Ask me to break down specific formulas, generate practice questions, or query scientific preprints from ArXiv on this subject!
+💡 **Tutor Tip**: Ask me to generate a personalized timetable for a specific subject (e.g. Calculus, Physics, Biology) or quiz you on any chapter!
 """
 
     return StudyChatResponse(
