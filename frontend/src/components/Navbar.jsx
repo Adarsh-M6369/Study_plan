@@ -1,8 +1,8 @@
 import React from 'react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
-import { GraduationCap, Activity, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Activity, ShieldCheck, PlugZap } from 'lucide-react';
 
-export const Navbar = ({ backendHealth }) => {
+export const Navbar = ({ backendHealth, onOpenConnectors }) => {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0b0f19]/80 border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -22,16 +22,26 @@ export const Navbar = ({ backendHealth }) => {
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          {/* MCP Connectors Button */}
+          <button
+            onClick={onOpenConnectors}
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-sky-400 border border-sky-500/30 hover:border-sky-500/60 shadow-sm transition-all hover:scale-[1.02]"
+            title="Manage Model Context Protocol (MCP) Connectors"
+          >
+            <PlugZap className="w-4 h-4 text-sky-400 animate-pulse" />
+            <span className="font-semibold text-slate-200">Connectors</span>
+          </button>
+
           {/* Backend Health Badge */}
           <div className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800">
             <span
               className={`w-2 h-2 rounded-full animate-pulse ${
-                backendHealth?.status === 'healthy' ? 'bg-emerald-400' : 'bg-amber-400'
+                backendHealth?.status === 'ok' || backendHealth?.status === 'healthy' ? 'bg-emerald-400' : 'bg-amber-400'
               }`}
             />
             <span className="text-slate-400">
-              {backendHealth?.status === 'healthy' ? 'FastAPI 8000 Connected' : 'Connecting Backend...'}
+              {backendHealth?.status === 'ok' || backendHealth?.status === 'healthy' ? 'FastAPI 8000' : 'Connecting Backend...'}
             </span>
           </div>
 

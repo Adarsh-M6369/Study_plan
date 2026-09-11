@@ -124,4 +124,38 @@ export const exportCSV = async (mcqs) => {
   window.URL.revokeObjectURL(url);
 };
 
+// ==========================================
+// MCP Connectors API
+// ==========================================
+
+export const getMCPConnectors = async (token) => {
+  const headers = await getAuthHeaders(token);
+  const res = await api.get('/api/mcp/connectors', { headers });
+  return res.data;
+};
+
+export const connectMCPConnector = async (connectorId, config, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
+  const res = await api.post('/api/mcp/connect', { connector_id: connectorId, config, enabled: true }, { headers });
+  return res.data;
+};
+
+export const disconnectMCPConnector = async (connectorId, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
+  const res = await api.post('/api/mcp/disconnect', { connector_id: connectorId }, { headers });
+  return res.data;
+};
+
+export const testMCPConnector = async (connectorId, config, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
+  const res = await api.post('/api/mcp/test', { connector_id: connectorId, config }, { headers });
+  return res.data;
+};
+
+export const executeMCPTool = async (connectorId, toolName, args, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
+  const res = await api.post('/api/mcp/execute', { connector_id: connectorId, tool_name: toolName, arguments: args }, { headers });
+  return res.data;
+};
+
 export default api;

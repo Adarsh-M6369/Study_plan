@@ -7,6 +7,7 @@ import { StudyPackDashboard } from './components/StudyPackDashboard';
 import { InteractiveQuiz } from './components/InteractiveQuiz';
 import { ShortQACard } from './components/ShortQACard';
 import { ExportBar } from './components/ExportBar';
+import { ConnectorsModal } from './components/ConnectorsModal';
 import { checkHealth, generateStudyPack } from './services/api';
 import {
   GraduationCap,
@@ -18,7 +19,8 @@ import {
   Zap,
   ArrowRight,
   Database,
-  Layers
+  Layers,
+  PlugZap
 } from 'lucide-react';
 
 function AuthenticatedWorkspace({ backendHealth }) {
@@ -32,6 +34,7 @@ function AuthenticatedWorkspace({ backendHealth }) {
   const [studyPack, setStudyPack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isConnectorsOpen, setIsConnectorsOpen] = useState(false);
 
   const handleIngestionSuccess = (docInfo) => {
     setActiveDoc(docInfo);
@@ -65,7 +68,14 @@ function AuthenticatedWorkspace({ backendHealth }) {
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
-      <Navbar backendHealth={backendHealth} />
+      <Navbar backendHealth={backendHealth} onOpenConnectors={() => setIsConnectorsOpen(true)} />
+
+      {/* MCP Connectors Modal */}
+      <ConnectorsModal
+        isOpen={isConnectorsOpen}
+        onClose={() => setIsConnectorsOpen(false)}
+        token={getToken}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Workspace Title & Welcome */}
