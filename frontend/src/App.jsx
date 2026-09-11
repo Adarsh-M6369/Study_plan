@@ -10,6 +10,7 @@ import { ExportBar } from './components/ExportBar';
 import { ConnectorsModal } from './components/ConnectorsModal';
 import { ConnectorsView } from './components/ConnectorsView';
 import { HistoryView } from './components/HistoryView';
+import { StudyAIChatbot } from './components/StudyAIChatbot';
 import { checkHealth, generateStudyPack } from './services/api';
 import {
   GraduationCap,
@@ -292,6 +293,9 @@ function AuthenticatedWorkspace({ backendHealth }) {
           )}
         </main>
       </div>
+
+      {/* Floating Right-Side AI Study Chatbot with Live MCP Knowledge */}
+      <StudyAIChatbot token={getToken} activeDoc={activeDoc} />
     </div>
   );
 }

@@ -158,4 +158,20 @@ export const executeMCPTool = async (connectorId, toolName, args, token) => {
   return res.data;
 };
 
+// ==========================================
+// AI Study Chatbot API
+// ==========================================
+
+export const sendStudyChatMessage = async ({ message, history = [], documentId = null }, token) => {
+  const payload = {
+    message,
+    history,
+    document_id: documentId,
+  };
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
+  const res = await api.post('/api/chat/study', payload, { headers });
+  return res.data;
+};
+
 export default api;
+

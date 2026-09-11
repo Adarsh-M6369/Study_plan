@@ -44,6 +44,8 @@ from app.schemas.request import (
     MCPExecuteToolRequest
 )
 from app.schemas.study_pack import StudyPack, MCQItem
+from app.schemas.chat import StudyChatRequest, StudyChatResponse
+from app.chat import process_study_chat
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -383,3 +385,34 @@ async def execute_tool(
     cfg = db_cfg.get("config", {}) if db_cfg else {}
     res = await run_mcp_connector_tool(request.connector_id, request.tool_name, request.arguments or {}, cfg)
     return {"status": "success", "tool_result": res}
+
+
+# =====================================================================
+# AI STUDY CHATBOT & MCP ASSISTANT ENDPOINT
+# =====================================================================
+
+@app.post("/api/chat/study", response_model=StudyChatResponse, tags=["AI Study Chatbot"])
+async def study_chat_endpoint(
+    request: StudyChatRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    AI Study Chatbot with strict academic/curriculum guardrails,
+    real-time multi-connector MCP queries (Wikipedia, ArXiv, NewsAPI),
+    and course notes retrieval.
+    """
+    try:
+        response = await process_study_chat(
+            user_id=user.user_id,
+            message=request.message,
+            history=request.history or [],
+            document_id=request.document_id
+        )
+        return response
+    except Exception as e:
+        logger.error(f"Error in study_chat_endpoint: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat generation error: {str(e)}"
+        )
+
