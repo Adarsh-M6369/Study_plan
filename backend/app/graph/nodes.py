@@ -71,49 +71,51 @@ def clean_context_content(context_text: str) -> str:
 
 def get_llm_with_fallback():
     """
-    Initializes primary Google Gemini LLM with Groq LLM fallback using LangChain .with_fallbacks().
-    If neither API key is configured or both fail, returns None (triggering offline synthesis).
+    Initializes high-performance Groq LLM (openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b)
+    with multi-tier model fallbacks and optional Gemini integration.
     """
-    primary_llm = None
-    fallback_llm = None
-
-    gemini_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
     groq_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY")
+    gemini_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
 
-    if gemini_key and gemini_key != "your_gemini_api_key_here":
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            primary_llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                google_api_key=gemini_key,
-                temperature=0.3,
-                max_retries=2
-            )
-            logger.info("Initialized primary Gemini LLM (gemini-1.5-flash).")
-        except Exception as e:
-            logger.warning(f"Failed to initialize ChatGoogleGenerativeAI: {e}")
+    groq_models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    llm_chain = []
 
     if groq_key and groq_key != "your_groq_api_key_here":
         try:
             from langchain_groq import ChatGroq
-            fallback_llm = ChatGroq(
-                model_name="llama-3.1-70b-versatile",
-                groq_api_key=groq_key,
-                temperature=0.3,
-                max_retries=2
-            )
-            logger.info("Initialized fallback Groq LLM (llama-3.1-70b-versatile).")
+            for m in groq_models:
+                llm_chain.append(
+                    ChatGroq(
+                        model_name=m,
+                        groq_api_key=groq_key,
+                        temperature=0.3,
+                        max_retries=2
+                    )
+                )
+            logger.info(f"Initialized Groq LLM chain ({', '.join(groq_models)}).")
         except Exception as e:
             logger.warning(f"Failed to initialize ChatGroq: {e}")
 
-    if primary_llm and fallback_llm:
-        return primary_llm.with_fallbacks([fallback_llm])
-    elif primary_llm:
-        return primary_llm
-    elif fallback_llm:
-        return fallback_llm
+    if gemini_key and gemini_key != "your_gemini_api_key_here":
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            gemini_llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash-latest",
+                google_api_key=gemini_key,
+                temperature=0.3,
+                max_retries=2
+            )
+            llm_chain.append(gemini_llm)
+        except Exception as e:
+            logger.warning(f"Failed to initialize ChatGoogleGenerativeAI: {e}")
 
-    logger.warning("No live LLM API keys provided (Gemini / Groq). Resilient synthesis generator will be active.")
+    if llm_chain:
+        primary = llm_chain[0]
+        if len(llm_chain) > 1:
+            return primary.with_fallbacks(llm_chain[1:])
+        return primary
+
+    logger.warning("No live LLM API keys available. Resilient synthesis generator will be active.")
     return None
 
 
