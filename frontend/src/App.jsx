@@ -8,6 +8,8 @@ import { InteractiveQuiz } from './components/InteractiveQuiz';
 import { ShortQACard } from './components/ShortQACard';
 import { ExportBar } from './components/ExportBar';
 import { ConnectorsModal } from './components/ConnectorsModal';
+import { ConnectorsView } from './components/ConnectorsView';
+import { HistoryView } from './components/HistoryView';
 import { checkHealth, generateStudyPack } from './services/api';
 import {
   GraduationCap,
@@ -20,13 +22,18 @@ import {
   ArrowRight,
   Database,
   Layers,
-  PlugZap
+  PlugZap,
+  History,
+  LayoutDashboard,
+  Menu,
+  X
 } from 'lucide-react';
 
 function AuthenticatedWorkspace({ backendHealth }) {
   const { getToken } = useAuth();
   const { user } = useUser();
 
+  const [activeTab, setActiveTab] = useState('studio'); // 'studio' | 'connectors' | 'history'
   const [activeDoc, setActiveDoc] = useState(null);
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('Intermediate');
@@ -34,7 +41,8 @@ function AuthenticatedWorkspace({ backendHealth }) {
   const [studyPack, setStudyPack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isConnectorsOpen, setIsConnectorsOpen] = useState(false);
+  const [isConnectorsModalOpen, setIsConnectorsModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleIngestionSuccess = (docInfo) => {
     setActiveDoc(docInfo);
@@ -66,132 +74,225 @@ function AuthenticatedWorkspace({ backendHealth }) {
     }
   };
 
+  const navItems = [
+    { id: 'studio', label: 'Study Studio', icon: LayoutDashboard, badge: null },
+    { id: 'connectors', label: 'MCP Connectors', icon: PlugZap, badge: 'Live MCP' },
+    { id: 'history', label: 'Saved Packs', icon: History, badge: null },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
-      <Navbar backendHealth={backendHealth} onOpenConnectors={() => setIsConnectorsOpen(true)} />
+      <Navbar
+        backendHealth={backendHealth}
+        onOpenConnectors={() => setActiveTab('connectors')}
+      />
 
-      {/* MCP Connectors Modal */}
+      {/* Quick Modal fallback if triggered from elsewhere */}
       <ConnectorsModal
-        isOpen={isConnectorsOpen}
-        onClose={() => setIsConnectorsOpen(false)}
+        isOpen={isConnectorsModalOpen}
+        onClose={() => setIsConnectorsModalOpen(false)}
         token={getToken}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Workspace Title & Welcome */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-          <div>
-            <div className="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" />
-              <span>Multi-Tenant AI Workspace</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-100 tracking-tight">
-              Study Pack & Practice Exam Studio
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Ingest lecture slides (up to 150 pages), synthesize whole-document study packs, and practice 20 MCQs.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3 bg-slate-900/80 px-4 py-2.5 rounded-xl border border-slate-800 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center border border-sky-500/30">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
+        {/* ========================================================= */}
+        {/* SIDE TABS / SIDEBAR NAVIGATION */}
+        {/* ========================================================= */}
+        <aside className="w-full md:w-64 shrink-0 space-y-4">
+          {/* User Info Card in Sidebar */}
+          <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-500 text-slate-950 font-black text-sm flex items-center justify-center shadow-md shadow-sky-500/20">
               {user?.firstName?.[0] || 'S'}
             </div>
-            <div>
-              <p className="text-xs font-bold text-slate-200">{user?.fullName || 'Active Scholar'}</p>
-              <p className="text-[10px] text-slate-400 font-mono">{user?.primaryEmailAddress?.emailAddress || 'student@studyguide.ai'}</p>
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-slate-200 truncate">{user?.fullName || 'Active Scholar'}</p>
+              <p className="text-[10px] text-slate-400 font-mono truncate">{user?.primaryEmailAddress?.emailAddress || 'student@studyguide.ai'}</p>
             </div>
           </div>
-        </div>
 
-        {/* Step 1: Ingestion Zone */}
-        <section>
-          <div className="flex items-center space-x-2 mb-3">
-            <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
-              1
-            </span>
-            <h2 className="text-base font-bold text-slate-200">Ingest Lecture Notes / PDF</h2>
+          {/* Side Navigation Tabs */}
+          <nav className="p-2 rounded-2xl bg-slate-900/50 border border-slate-800/80 space-y-1">
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Workspace Navigation
+            </div>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20 font-extrabold scale-[1.01]'
+                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                        isActive
+                          ? 'bg-slate-950 text-sky-300'
+                          : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* MCP Status Widget in Sidebar */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950/30 border border-slate-800/80 space-y-2.5 hidden md:block">
+            <div className="flex items-center space-x-2 text-sky-400 text-xs font-bold">
+              <PlugZap className="w-3.5 h-3.5" />
+              <span>MCP Protocol Active</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              External tools (NewsAPI, Wikipedia, ArXiv) are actively linked to enrich study packs.
+            </p>
+            <button
+              onClick={() => setActiveTab('connectors')}
+              className="w-full py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition-all text-center"
+            >
+              Configure Connectors &rarr;
+            </button>
           </div>
-          <IngestionZone
-            token={getToken}
-            onIngestionSuccess={handleIngestionSuccess}
-            activeDoc={activeDoc}
-          />
-        </section>
+        </aside>
 
-        {/* Step 2: Generation Parameters */}
-        <section>
-          <div className="flex items-center space-x-2 mb-3">
-            <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
-              2
-            </span>
-            <h2 className="text-base font-bold text-slate-200">Configure & Synthesize Full Curriculum</h2>
-          </div>
-          <DifficultySelector
-            difficulty={difficulty}
-            setDifficulty={setDifficulty}
-            topic={topic}
-            setTopic={setTopic}
-            customInstructions={customInstructions}
-            setCustomInstructions={setCustomInstructions}
-            onGenerate={handleGenerate}
-            loading={loading}
-            hasActiveDoc={!!activeDoc}
-          />
-        </section>
+        {/* ========================================================= */}
+        {/* MAIN CONTENT AREA ACCORDING TO ACTIVE SIDE TAB */}
+        {/* ========================================================= */}
+        <main className="flex-1 min-w-0 space-y-6">
+          {/* TAB 1: CONNECTORS SIDE TAB VIEW */}
+          {activeTab === 'connectors' && (
+            <ConnectorsView token={getToken} />
+          )}
 
-        {error && (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm font-medium">
-            ❌ {error}
-          </div>
-        )}
+          {/* TAB 2: SAVED HISTORY SIDE TAB VIEW */}
+          {activeTab === 'history' && (
+            <HistoryView
+              token={getToken}
+              onSelectPack={(pack) => {
+                setStudyPack(pack);
+                setActiveTab('studio');
+              }}
+            />
+          )}
 
-        {/* Generated Study Pack Outputs */}
-        {studyPack && (
-          <div className="space-y-8 animate-fadeIn">
-            {/* Download Bar */}
-            <ExportBar studyPack={studyPack} />
-
-            {/* Step 3: Summaries, Glossary & Roadmap */}
-            <section>
-              <div className="flex items-center space-x-2 mb-3">
-                <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
-                  3
-                </span>
-                <h2 className="text-base font-bold text-slate-200">Curriculum Study Pack & Roadmap</h2>
+          {/* TAB 3: STUDY STUDIO MAIN WORKSPACE */}
+          {activeTab === 'studio' && (
+            <div className="space-y-8 animate-fadeIn">
+              {/* Workspace Title & Welcome */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <div className="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-0.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Study Studio & Practice Exam</span>
+                  </div>
+                  <h1 className="text-2xl font-black text-slate-100 tracking-tight">
+                    Whole-Document Study Pack Generator
+                  </h1>
+                </div>
               </div>
-              <StudyPackDashboard studyPack={studyPack} />
-            </section>
 
-            {/* Step 4: Conceptual 5 Short Q&As */}
-            <section>
-              <div className="flex items-center space-x-2 mb-3">
-                <span className="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-400 font-bold text-xs flex items-center justify-center">
-                  4
-                </span>
-                <h2 className="text-base font-bold text-slate-200">Conceptual Short Questions & Solutions</h2>
-              </div>
-              <ShortQACard shortQas={studyPack.short_qas} />
-            </section>
+              {/* Step 1: Ingestion Zone */}
+              <section>
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <h2 className="text-base font-bold text-slate-200">Ingest Lecture Notes / PDF (up to 150 pages)</h2>
+                </div>
+                <IngestionZone
+                  token={getToken}
+                  onIngestionSuccess={handleIngestionSuccess}
+                  activeDoc={activeDoc}
+                />
+              </section>
 
-            {/* Step 5: 20 Practice MCQs */}
-            <section>
-              <div className="flex items-center space-x-2 mb-3">
-                <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold text-xs flex items-center justify-center">
-                  5
-                </span>
-                <h2 className="text-base font-bold text-slate-200">Interactive Practice Exam (20 MCQs)</h2>
-              </div>
-              <InteractiveQuiz
-                mcqs={studyPack.mcqs}
-                packId={studyPack.id}
-                documentId={activeDoc?.documentId}
-                token={getToken}
-              />
-            </section>
-          </div>
-        )}
-      </main>
+              {/* Step 2: Generation Parameters */}
+              <section>
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
+                    2
+                  </span>
+                  <h2 className="text-base font-bold text-slate-200">Configure & Synthesize Full Curriculum</h2>
+                </div>
+                <DifficultySelector
+                  difficulty={difficulty}
+                  setDifficulty={setDifficulty}
+                  topic={topic}
+                  setTopic={setTopic}
+                  customInstructions={customInstructions}
+                  setCustomInstructions={setCustomInstructions}
+                  onGenerate={handleGenerate}
+                  loading={loading}
+                  hasActiveDoc={!!activeDoc}
+                />
+              </section>
+
+              {error && (
+                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm font-medium">
+                  ❌ {error}
+                </div>
+              )}
+
+              {/* Generated Study Pack Outputs */}
+              {studyPack && (
+                <div className="space-y-8 animate-fadeIn">
+                  {/* Download Bar */}
+                  <ExportBar studyPack={studyPack} />
+
+                  {/* Step 3: Summaries, Glossary & Roadmap */}
+                  <section>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 font-bold text-xs flex items-center justify-center">
+                        3
+                      </span>
+                      <h2 className="text-base font-bold text-slate-200">Curriculum Study Pack & Roadmap</h2>
+                    </div>
+                    <StudyPackDashboard studyPack={studyPack} />
+                  </section>
+
+                  {/* Step 4: Conceptual 5 Short Q&As */}
+                  <section>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-400 font-bold text-xs flex items-center justify-center">
+                        4
+                      </span>
+                      <h2 className="text-base font-bold text-slate-200">Conceptual Short Questions & Solutions</h2>
+                    </div>
+                    <ShortQACard shortQas={studyPack.short_qas} />
+                  </section>
+
+                  {/* Step 5: 20 Practice MCQs */}
+                  <section>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold text-xs flex items-center justify-center">
+                        5
+                      </span>
+                      <h2 className="text-base font-bold text-slate-200">Interactive Practice Exam (20 MCQs)</h2>
+                    </div>
+                    <InteractiveQuiz
+                      mcqs={studyPack.mcqs}
+                      packId={studyPack.id}
+                      documentId={activeDoc?.documentId}
+                      token={getToken}
+                    />
+                  </section>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
