@@ -22,11 +22,35 @@ logger = logging.getLogger("exports.pdf")
 
 
 def _safe_xml(text: str) -> str:
-    """Safely escapes text and converts basic markdown **bold** and *italic* to ReportLab tags."""
+    """Safely escapes text and normalizes unicode characters so ReportLab default fonts never crash on latin-1."""
     if not text:
         return ""
-    # First escape HTML special chars
-    escaped = html.escape(str(text))
+    s = str(text)
+    # Replace common typography unicode chars with ASCII equivalents
+    replacements = {
+        "\u2014": " -- ",  # em-dash
+        "\u2013": "-",     # en-dash
+        "\u2018": "'",     # left single quote
+        "\u2019": "'",     # right single quote
+        "\u201c": '"',     # left double quote
+        "\u201d": '"',     # right double quote
+        "\u2022": "*",     # bullet
+        "\u2026": "...",   # ellipsis
+        "\u00a0": " ",     # non-breaking space
+        "\u200b": "",      # zero-width space
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
+        "\u2212": "-",
+    }
+    for k, v in replacements.items():
+        s = s.replace(k, v)
+
+    # Encode with replace to ensure no unencodable characters remain
+    s = s.encode("latin-1", "replace").decode("latin-1")
+
+    # Escape HTML special chars
+    escaped = html.escape(s)
     # Convert escaped bold & italic markdown
     escaped = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", escaped)
     escaped = re.sub(r"\*(.*?)\*", r"<i>\1</i>", escaped)

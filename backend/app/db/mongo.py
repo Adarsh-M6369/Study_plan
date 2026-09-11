@@ -404,6 +404,82 @@ async def get_user_quiz_history(user_id: str) -> List[Dict[str, Any]]:
 
 
 # =====================================================================
+# 5. COLLECTION: mcp_connectors (MCP Connector Configuration & Status)
+# =====================================================================
+
+async def save_connector_config(
+    user_id: str,
+    connector_id: str,
+    enabled: bool,
+    config: Optional[Dict[str, Any]] = None,
+    status: str = "connected"
+) -> Dict[str, Any]:
+    """
+    Saves or updates user configuration and active status for an MCP connector
+    in collection 'mcp_connectors' strictly scoped by user_id and connector_id.
+    """
+    db = await get_db()
+    now = datetime.datetime.utcnow().isoformat()
+    record = {
+        "_id": f"{user_id}_{connector_id}",
+        "user_id": user_id,
+        "connector_id": connector_id,
+        "enabled": enabled,
+        "status": status if enabled else "disconnected",
+        "config": config or {},
+        "updated_at": now
+    }
+
+    if db is not None:
+        try:
+            await db.mcp_connectors.update_one(
+                {"user_id": user_id, "connector_id": connector_id},
+                {"$set": record},
+                upsert=True
+            )
+            logger.info(f"Saved MCP connector '{connector_id}' (enabled={enabled}) for user '{user_id}'.")
+            return record
+        except Exception as e:
+            logger.error(f"Failed to persist connector config: {e}")
+
+    if "mcp_connectors" not in _memory_store:
+        _memory_store["mcp_connectors"] = {}
+    if user_id not in _memory_store["mcp_connectors"]:
+        _memory_store["mcp_connectors"][user_id] = {}
+    _memory_store["mcp_connectors"][user_id][connector_id] = record
+    return record
+
+
+async def get_user_connectors(user_id: str) -> List[Dict[str, Any]]:
+    """Retrieves all MCP connector configurations for the authenticated user."""
+    db = await get_db()
+    if db is not None:
+        try:
+            cursor = db.mcp_connectors.find({"user_id": user_id})
+            return await cursor.to_list(length=50)
+        except Exception as e:
+            logger.error(f"Error fetching user MCP connectors: {e}")
+
+    if "mcp_connectors" not in _memory_store:
+        _memory_store["mcp_connectors"] = {}
+    return list(_memory_store["mcp_connectors"].get(user_id, {}).values())
+
+
+async def get_connector_config(user_id: str, connector_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieves specific MCP connector configuration for the user."""
+    db = await get_db()
+    if db is not None:
+        try:
+            return await db.mcp_connectors.find_one({"user_id": user_id, "connector_id": connector_id})
+        except Exception as e:
+            logger.error(f"Error fetching connector {connector_id}: {e}")
+
+    if "mcp_connectors" not in _memory_store:
+        _memory_store["mcp_connectors"] = {}
+    return _memory_store["mcp_connectors"].get(user_id, {}).get(connector_id)
+
+
+# =====================================================================
 # Backward-compatibility aliases
 # =====================================================================
 save_user_document = save_document
@@ -422,3 +498,4 @@ async def save_document_metadata(user_id: str, doc_metadata: dict) -> None:
         clean_text=doc_metadata.get("clean_text", ""),
         pages_data=doc_metadata.get("pages_data")
     )
+

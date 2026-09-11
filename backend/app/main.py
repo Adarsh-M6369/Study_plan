@@ -17,7 +17,15 @@ from app.db.mongo import (
     get_user_documents,
     get_study_packs_by_user,
     save_quiz_result,
-    get_user_quiz_history
+    get_user_quiz_history,
+    save_connector_config,
+    get_user_connectors,
+    get_connector_config
+)
+from app.mcp import (
+    CONNECTOR_DEFINITIONS,
+    run_mcp_connector_tool,
+    test_connector_connection
 )
 from app.rag.parser import parse_pdf_bytes, clean_text
 from app.rag.splitter import split_text_into_chunks
@@ -25,7 +33,16 @@ from app.rag.store import get_vector_store
 from app.graph.workflow import run_study_pack_pipeline
 from app.exports.pdf_engine import generate_study_pack_pdf
 from app.exports.csv_engine import generate_anki_csv
-from app.schemas.request import IngestTextRequest, GenerateRequest, UploadResponse, QuizSubmitRequest
+from app.schemas.request import (
+    IngestTextRequest,
+    GenerateRequest,
+    UploadResponse,
+    QuizSubmitRequest,
+    MCPConnectRequest,
+    MCPDisconnectRequest,
+    MCPTestRequest,
+    MCPExecuteToolRequest
+)
 from app.schemas.study_pack import StudyPack, MCQItem
 
 # Setup logging
@@ -265,5 +282,104 @@ async def export_csv(mcqs: List[MCQItem]):
             headers={"Content-Disposition": "attachment; filename=Anki_Quizlet_Flashcards.csv"}
         )
     except Exception as e:
-        logger.error(f"Error generating flashcards CSV: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSV export error: {str(e)}")
+        logger.error(f"Error generating Anki CSV: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSV generation error: {str(e)}")
+
+
+# =====================================================================
+# MCP CONNECTORS ENDPOINTS
+# =====================================================================
+
+@app.get("/api/mcp/connectors", tags=["MCP Connectors"])
+async def get_connectors(user: AuthenticatedUser = Depends(get_current_user)):
+    """
+    Retrieves all available Model Context Protocol (MCP) Connectors along with
+    the authenticated user's connection status and settings from MongoDB.
+    """
+    user_id = user.user_id
+    user_configs = await get_user_connectors(user_id)
+    configs_by_id = {c["connector_id"]: c for c in user_configs}
+
+    result = []
+    for defn in CONNECTOR_DEFINITIONS:
+        cid = defn["id"]
+        user_cfg = configs_by_id.get(cid)
+        is_enabled = user_cfg.get("enabled", defn.get("default_enabled", False)) if user_cfg else defn.get("default_enabled", False)
+        status_val = user_cfg.get("status", "connected" if is_enabled else "disconnected") if user_cfg else ("connected" if is_enabled else "disconnected")
+        saved_config = user_cfg.get("config", {}) if user_cfg else {}
+
+        result.append({
+            **defn,
+            "connected": is_enabled,
+            "status": status_val,
+            "active_config": saved_config
+        })
+
+    return {"status": "success", "connectors": result}
+
+
+@app.post("/api/mcp/connect", tags=["MCP Connectors"])
+async def connect_connector(
+    request: MCPConnectRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Connects/enables an MCP connector for the authenticated user and saves configuration in MongoDB.
+    """
+    record = await save_connector_config(
+        user_id=user.user_id,
+        connector_id=request.connector_id,
+        enabled=True,
+        config=request.config,
+        status="connected"
+    )
+    return {"status": "success", "message": f"Connected to {request.connector_id} successfully.", "connector": record}
+
+
+@app.post("/api/mcp/disconnect", tags=["MCP Connectors"])
+async def disconnect_connector(
+    request: MCPDisconnectRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Disconnects/disables an MCP connector for the authenticated user in MongoDB.
+    """
+    record = await save_connector_config(
+        user_id=user.user_id,
+        connector_id=request.connector_id,
+        enabled=False,
+        status="disconnected"
+    )
+    return {"status": "success", "message": f"Disconnected {request.connector_id}.", "connector": record}
+
+
+@app.post("/api/mcp/test", tags=["MCP Connectors"])
+async def test_connector(
+    request: MCPTestRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Tests live connection latency and connectivity for a specified MCP connector.
+    """
+    cfg = request.config or {}
+    if not cfg:
+        db_cfg = await get_connector_config(user.user_id, request.connector_id)
+        if db_cfg and "config" in db_cfg:
+            cfg = db_cfg["config"]
+
+    res = await test_connector_connection(request.connector_id, cfg)
+    return res
+
+
+@app.post("/api/mcp/execute", tags=["MCP Connectors"])
+async def execute_tool(
+    request: MCPExecuteToolRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """
+    Directly invokes an MCP tool across the connected connector.
+    """
+    db_cfg = await get_connector_config(user.user_id, request.connector_id)
+    cfg = db_cfg.get("config", {}) if db_cfg else {}
+    res = await run_mcp_connector_tool(request.connector_id, request.tool_name, request.arguments or {}, cfg)
+    return {"status": "success", "tool_result": res}

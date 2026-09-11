@@ -281,18 +281,41 @@ async def reasoner_node(state: AgentState) -> Dict[str, Any]:
 
 async def mcp_tool_node(state: AgentState) -> Dict[str, Any]:
     """
-    Executes MCP tool calls if required, appending results to state.
+    Executes active user MCP connector tool calls to enrich study guide context.
     """
-    logger.info("Executing MCP Tool node.")
-    tool_results = state.get("tool_results", [])
+    user_id = state.get("user_id", "default_user")
     topic = state.get("topic") or "General"
+    tool_results = state.get("tool_results", [])
 
-    tool_res = await execute_mcp_tool(
-        tool_name="academic_context_enricher",
-        arguments={"topic": topic, "difficulty": state.get("difficulty", "Intermediate")}
-    )
+    from app.db.mongo import get_user_connectors
+    from app.mcp.registry import run_mcp_connector_tool
 
-    tool_results.append(tool_res)
+    user_connectors = await get_user_connectors(user_id)
+    active_connectors = [c for c in user_connectors if c.get("enabled", False)]
+
+    if not active_connectors:
+        wiki_res = await run_mcp_connector_tool("wikipedia_connector", "search_wikipedia", {"query": topic}, {})
+        tool_results.append(wiki_res)
+    else:
+        for conn in active_connectors:
+            cid = conn.get("connector_id")
+            cfg = conn.get("config", {})
+            try:
+                if cid == "news_connector":
+                    res = await run_mcp_connector_tool(cid, "get_latest_news", {"query": topic}, cfg)
+                elif cid == "wikipedia_connector":
+                    res = await run_mcp_connector_tool(cid, "search_wikipedia", {"query": topic}, cfg)
+                elif cid == "arxiv_connector":
+                    res = await run_mcp_connector_tool(cid, "search_arxiv_papers", {"query": topic}, cfg)
+                elif cid == "search_connector":
+                    res = await run_mcp_connector_tool(cid, "web_search", {"query": topic}, cfg)
+                else:
+                    res = await run_mcp_connector_tool(cid, "execute_custom_tool", {"tool_name": "query", "arguments": {"topic": topic}}, cfg)
+                tool_results.append(res)
+            except Exception as e:
+                logger.warning(f"Error executing MCP tool for {cid}: {e}")
+
+    logger.info(f"mcp_tool_node complete. Generated {len(tool_results)} enriched MCP context entries.")
     return {
         "tool_results": tool_results,
         "next_step": "synthesis"

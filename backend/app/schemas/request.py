@@ -37,3 +37,24 @@ class QuizSubmitRequest(BaseModel):
     total: int = Field(default=20, description="Total number of questions")
     answers: Dict[str, str] = Field(default_factory=dict, description="Map of question_id to selected answer")
 
+
+class MCPConnectRequest(BaseModel):
+    connector_id: str = Field(..., description="ID of the MCP connector to configure")
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Configuration settings for the connector")
+    enabled: bool = Field(default=True, description="Whether the connector is enabled")
+
+
+class MCPDisconnectRequest(BaseModel):
+    connector_id: str = Field(..., description="ID of the MCP connector to disconnect")
+
+
+class MCPTestRequest(BaseModel):
+    connector_id: str = Field(..., description="ID of the MCP connector to test")
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Configuration parameters to test")
+
+
+class MCPExecuteToolRequest(BaseModel):
+    connector_id: str = Field(..., description="Target MCP connector ID")
+    tool_name: str = Field(..., description="Name of tool to execute")
+    arguments: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Tool arguments")
+
