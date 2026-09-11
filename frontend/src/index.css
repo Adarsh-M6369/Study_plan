@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-[#0b0f19] text-slate-100 antialiased selection:bg-sky-500/30 selection:text-sky-200;
+    @apply bg-[#080b11] text-slate-100 antialiased selection:bg-amber-400/30 selection:text-amber-200;
   }
 }
 
@@ -15,7 +15,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #080b11;
 }
 
 ::-webkit-scrollbar-thumb {

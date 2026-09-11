@@ -80,15 +80,15 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+    <div className="bg-[#141b2d] border border-[#232f48] rounded-2xl p-6 shadow-xl backdrop-blur-sm">
       {/* Tabs */}
-      <div className="flex space-x-2 p-1.5 bg-slate-950/80 rounded-xl border border-slate-800/80 max-w-md mb-6">
+      <div className="flex space-x-2 p-1.5 bg-[#080b11] rounded-xl border border-[#232f48] max-w-md mb-6">
         <button
           onClick={() => { setActiveTab('pdf'); setError(null); }}
           className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
             activeTab === 'pdf'
-              ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/20'
+              : 'text-slate-400 hover:text-amber-300 hover:bg-[#1d273e]'
           }`}
         >
           <UploadCloud className="w-4 h-4" />
@@ -98,8 +98,8 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
           onClick={() => { setActiveTab('text'); setError(null); }}
           className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
             activeTab === 'text'
-              ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/20'
+              : 'text-slate-400 hover:text-amber-300 hover:bg-[#1d273e]'
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -109,14 +109,14 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
 
       {/* Active Document Indicator */}
       {activeDoc && (
-        <div className="mb-6 p-4 rounded-xl bg-sky-950/30 border border-sky-800/40 flex items-center justify-between">
+        <div className="mb-6 p-4 rounded-xl bg-[#080b11] border border-amber-400/30 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-sky-400" />
+            <div className="w-9 h-9 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <p className="text-sm font-bold text-slate-100">{activeDoc.title}</p>
-              <p className="text-xs text-sky-300">
+              <p className="text-xs text-amber-300/80">
                 {activeDoc.pageCount} page(s) &bull; {activeDoc.chunkCount} semantic chunks indexed
               </p>
             </div>
@@ -130,7 +130,7 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
       {/* PDF Upload Tab */}
       {activeTab === 'pdf' && (
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-slate-700 hover:border-sky-500/50 rounded-2xl p-8 text-center transition-all bg-slate-950/40 group">
+          <div className="border-2 border-dashed border-[#232f48] hover:border-amber-400/50 rounded-2xl p-8 text-center transition-all bg-[#080b11]/70 group">
             <input
               type="file"
               accept=".pdf"
@@ -139,14 +139,14 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
               onChange={handleFileChange}
             />
             <label htmlFor="pdf-upload" className="cursor-pointer flex flex-col items-center">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 group-hover:bg-sky-500/10 group-hover:text-sky-400 text-slate-400 flex items-center justify-center mb-4 transition-all">
+              <div className="w-14 h-14 rounded-2xl bg-[#141b2d] group-hover:bg-amber-400/10 group-hover:text-amber-400 text-slate-400 flex items-center justify-center mb-4 transition-all">
                 <UploadCloud className="w-7 h-7" />
               </div>
               <p className="text-sm font-semibold text-slate-200">
                 {file ? file.name : 'Click to select or drag & drop lecture PDF'}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                Strict limit: up to <strong className="text-sky-400">150 pages</strong> per upload
+                Strict limit: up to <strong className="text-amber-400">150 pages</strong> per upload
               </p>
             </label>
           </div>
@@ -158,14 +158,14 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
               placeholder="e.g. Distributed Systems & Consensus Protocols"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-[#080b11] border border-[#232f48] text-slate-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
             />
           </div>
 
           <button
             onClick={handleUploadPDF}
             disabled={loading || !file}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-sky-400 hover:from-sky-400 hover:to-sky-300 text-slate-950 font-bold text-sm shadow-lg shadow-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+            className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
           >
             {loading ? (
               <>
@@ -192,7 +192,7 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
               placeholder="e.g. Chapter 4: Photosynthesis & Cellular Respiration"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-[#080b11] border border-[#232f48] text-slate-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
             />
           </div>
 
@@ -203,14 +203,14 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               placeholder="Paste reading passages, lecture transcripts, syllabus bullet points, or review summaries here..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono leading-relaxed"
+              className="w-full px-4 py-3 rounded-xl bg-[#080b11] border border-[#232f48] text-slate-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-mono leading-relaxed"
             />
           </div>
 
           <button
             onClick={handleIngestText}
             disabled={loading || !rawText.trim()}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-sky-400 hover:from-sky-400 hover:to-sky-300 text-slate-950 font-bold text-sm shadow-lg shadow-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+            className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
           >
             {loading ? (
               <>
@@ -244,3 +244,4 @@ export const IngestionZone = ({ token, onIngestionSuccess, activeDoc }) => {
     </div>
   );
 };
+

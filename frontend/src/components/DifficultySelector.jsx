@@ -25,21 +25,21 @@ export const DifficultySelector = ({
       label: 'Intermediate',
       desc: 'Application, conceptual synthesis & multi-step deduction',
       badge: 'Application & Analysis',
-      color: 'border-sky-500/40 bg-sky-950/20 text-sky-300'
+      color: 'border-amber-400/40 bg-amber-950/20 text-amber-300'
     },
     {
       id: 'Advanced',
       label: 'Advanced',
       desc: 'Edge cases, rigorous mechanisms & challenging distractors',
       badge: 'Deep Mastery & Edge Cases',
-      color: 'border-indigo-500/40 bg-indigo-950/20 text-indigo-300'
+      color: 'border-amber-500/40 bg-amber-950/30 text-amber-200'
     }
   ];
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-6">
-      <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-        <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+    <div className="bg-[#141b2d] border border-[#232f48] rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-6">
+      <div className="flex items-center space-x-3 pb-4 border-b border-[#232f48]">
+        <div className="w-9 h-9 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
           <Sliders className="w-5 h-5" />
         </div>
         <div>
@@ -51,7 +51,7 @@ export const DifficultySelector = ({
       {/* Difficulty Tier Radio Cards */}
       <div>
         <label className="block text-xs font-semibold text-slate-300 mb-2.5 flex items-center space-x-1.5">
-          <Target className="w-3.5 h-3.5 text-sky-400" />
+          <Target className="w-3.5 h-3.5 text-amber-400" />
           <span>Select Academic Difficulty Tier</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -62,8 +62,8 @@ export const DifficultySelector = ({
               onClick={() => setDifficulty(tier.id)}
               className={`p-4 rounded-xl border text-left transition-all ${
                 difficulty === tier.id
-                  ? 'border-sky-500 bg-sky-500/10 shadow-lg shadow-sky-500/10'
-                  : 'border-slate-800 bg-slate-950/40 hover:border-slate-700 text-slate-300'
+                  ? 'border-amber-400 bg-amber-400/10 shadow-lg shadow-amber-500/10'
+                  : 'border-[#232f48] bg-[#080b11] hover:border-slate-700 text-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
@@ -87,7 +87,7 @@ export const DifficultySelector = ({
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g. Distributed Systems & Consensus Protocols"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+            className="w-full px-4 py-2.5 rounded-xl bg-[#080b11] border border-[#232f48] text-slate-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
           />
         </div>
 
@@ -98,7 +98,7 @@ export const DifficultySelector = ({
             value={customInstructions}
             onChange={(e) => setCustomInstructions(e.target.value)}
             placeholder="e.g. Focus on edge cases and algorithm complexity"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+            className="w-full px-4 py-2.5 rounded-xl bg-[#080b11] border border-[#232f48] text-slate-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
           />
         </div>
       </div>
@@ -107,7 +107,7 @@ export const DifficultySelector = ({
       <button
         onClick={onGenerate}
         disabled={loading}
-        className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-sky-500 via-sky-400 to-indigo-400 hover:from-sky-400 hover:to-indigo-300 text-slate-950 font-extrabold text-sm shadow-xl shadow-sky-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2.5 transition-all hover:scale-[1.01]"
+        className="w-full py-3.5 px-6 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2.5 transition-all hover:scale-[1.01]"
       >
         {loading ? (
           <>
@@ -124,3 +124,4 @@ export const DifficultySelector = ({
     </div>
   );
 };
+

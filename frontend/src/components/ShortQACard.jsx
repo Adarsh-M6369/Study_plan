@@ -16,9 +16,9 @@ export const ShortQACard = ({ shortQas = [] }) => {
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
-      <div className="flex items-center space-x-3 pb-4 border-b border-slate-800">
-        <div className="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+    <div className="bg-[#141b2d] border border-[#232f48] rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
+      <div className="flex items-center space-x-3 pb-4 border-b border-[#232f48]">
+        <div className="w-9 h-9 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
           <HelpCircle className="w-5 h-5" />
         </div>
         <div>
@@ -34,15 +34,15 @@ export const ShortQACard = ({ shortQas = [] }) => {
           return (
             <div
               key={qa.id || idx}
-              className="rounded-xl border border-slate-800 bg-slate-950/40 overflow-hidden transition-all"
+              className="rounded-xl border border-[#232f48] bg-[#080b11]/60 overflow-hidden transition-all"
             >
               <button
                 type="button"
                 onClick={() => toggleAccordion(qa.id || idx)}
-                className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-900/50 transition-colors"
+                className="w-full p-4 text-left flex items-center justify-between hover:bg-[#1d273e]/50 transition-colors"
               >
                 <div className="flex items-start space-x-3 pr-4">
-                  <span className="w-6 h-6 rounded-md bg-indigo-500/10 text-indigo-400 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-md bg-amber-400/10 text-amber-400 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 border border-amber-400/20">
                     Q{qa.id || idx + 1}
                   </span>
                   <h4 className="text-sm font-bold text-slate-200 leading-snug">{qa.question}</h4>
@@ -55,8 +55,8 @@ export const ShortQACard = ({ shortQas = [] }) => {
               </button>
 
               {isOpen && (
-                <div className="p-4 pt-0 border-t border-slate-800/60 mt-2 space-y-3">
-                  <div className="p-3.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-slate-200 leading-relaxed">
+                <div className="p-4 pt-0 border-t border-[#232f48] mt-2 space-y-3">
+                  <div className="p-3.5 rounded-lg bg-[#141b2d] border border-[#232f48] text-xs text-slate-200 leading-relaxed">
                     <span className="font-bold text-emerald-400 block mb-1">Model Solution / Answer:</span>
                     {qa.model_answer}
                   </div>
@@ -69,7 +69,7 @@ export const ShortQACard = ({ shortQas = [] }) => {
                       <ul className="space-y-1">
                         {qa.key_points.map((pt, pIdx) => (
                           <li key={pIdx} className="text-xs text-slate-300 flex items-center space-x-2">
-                            <CheckCircle className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <CheckCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                             <span>{pt}</span>
                           </li>
                         ))}
@@ -85,3 +85,4 @@ export const ShortQACard = ({ shortQas = [] }) => {
     </div>
   );
 };
+

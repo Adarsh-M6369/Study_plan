@@ -7,18 +7,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0b0f19',
-        card: '#111827',
-        cardBorder: '#1e293b',
-        primary: {
-          DEFAULT: '#38bdf8',
-          hover: '#0284c7',
-          dark: '#0369a1',
-          light: '#7dd3fc'
-        },
-        accent: '#818cf8',
-        surface: '#1e293b',
-        surfaceHover: '#334155'
+        darkBase: '#080b11',         // Dark Color 1: Deep Abyss Black
+        darkSurface: '#141b2d',      // Dark Color 2: Midnight Slate / Sapphire Charcoal
+        darkSurfaceHover: '#1d273e',
+        darkBorder: '#232f48',
+        lightAccent: {               // Light Color: Luminous Sunburst Amber / Gold Light
+          DEFAULT: '#fbbf24',
+          hover: '#f59e0b',
+          glow: '#fef08a',
+          dark: '#b45309'
+        }
       }
     },
   },

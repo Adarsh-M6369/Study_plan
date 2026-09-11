@@ -165,9 +165,9 @@ export const ConnectorsView = ({ token }) => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#080b11] via-[#141b2d] to-[#080b11] border border-[#232f48] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
             <PlugZap className="w-4 h-4" />
             <span>Model Context Protocol (MCP) Hub</span>
           </div>
@@ -180,7 +180,7 @@ export const ConnectorsView = ({ token }) => {
         </div>
 
         <div className="flex items-center space-x-3 shrink-0">
-          <div className="px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-right">
+          <div className="px-4 py-2.5 rounded-xl bg-[#080b11] border border-[#232f48] text-right">
             <p className="text-[10px] uppercase font-bold text-slate-400">Active Connectors</p>
             <p className="text-lg font-black text-emerald-400 flex items-center justify-end space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -191,10 +191,10 @@ export const ConnectorsView = ({ token }) => {
           <button
             onClick={loadConnectors}
             disabled={loading}
-            className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+            className="p-3 rounded-xl bg-[#141b2d] hover:bg-[#1d273e] text-slate-300 border border-[#232f48] transition-all"
             title="Refresh Connectors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-sky-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
           </button>
         </div>
       </div>
@@ -202,15 +202,15 @@ export const ConnectorsView = ({ token }) => {
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
         {/* Category Tabs */}
-        <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800 overflow-x-auto w-full sm:w-auto no-scrollbar">
+        <div className="flex items-center space-x-1.5 p-1 rounded-xl bg-[#141b2d] border border-[#232f48] overflow-x-auto w-full sm:w-auto no-scrollbar">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === cat
-                  ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-amber-300 hover:bg-[#1d273e]'
               }`}
             >
               {cat}
@@ -226,7 +226,7 @@ export const ConnectorsView = ({ token }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search connectors..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500"
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[#080b11] border border-[#232f48] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
           />
         </div>
       </div>
@@ -234,7 +234,7 @@ export const ConnectorsView = ({ token }) => {
       {/* Connectors List */}
       {loading ? (
         <div className="py-20 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-sky-400 animate-spin" />
+          <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />
           <p className="text-sm font-medium">Scanning MCP Subsystem & Connectors...</p>
         </div>
       ) : error ? (
@@ -242,7 +242,7 @@ export const ConnectorsView = ({ token }) => {
           {error}
         </div>
       ) : filteredConnectors.length === 0 ? (
-        <div className="py-16 text-center text-slate-400 bg-slate-900/30 rounded-2xl border border-slate-800">
+        <div className="py-16 text-center text-slate-400 bg-[#141b2d] rounded-2xl border border-[#232f48]">
           <Layers className="w-8 h-8 text-slate-600 mx-auto mb-2" />
           <p className="text-sm">No connectors match your current filter.</p>
         </div>
@@ -260,8 +260,8 @@ export const ConnectorsView = ({ token }) => {
                 key={connector.id}
                 className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                   isConnected
-                    ? 'bg-slate-900/90 border-sky-500/40 shadow-lg shadow-sky-950/20'
-                    : 'bg-slate-900/40 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-[#141b2d] border-amber-400/40 shadow-lg shadow-amber-950/20'
+                    : 'bg-[#141b2d] border-[#232f48] hover:border-slate-700'
                 }`}
               >
                 {/* Connector Top Info */}
@@ -270,8 +270,8 @@ export const ConnectorsView = ({ token }) => {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                         isConnected
-                          ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30 shadow-inner'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30 shadow-inner'
+                          : 'bg-[#080b11] text-slate-400 border border-[#232f48]'
                       }`}
                     >
                       <IconComponent className="w-6 h-6 stroke-[2]" />
@@ -279,14 +279,14 @@ export const ConnectorsView = ({ token }) => {
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2.5 flex-wrap">
                         <h3 className="font-bold text-slate-100 text-base">{connector.name}</h3>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#080b11] text-slate-300 border border-[#232f48]">
                           {connector.category}
                         </span>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center space-x-1 ${
                             isConnected
                               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                              : 'bg-[#080b11] text-slate-400 border border-[#232f48]'
                           }`}
                         >
                           <span
@@ -307,7 +307,7 @@ export const ConnectorsView = ({ token }) => {
                         {(connector.tools || []).map((t) => (
                           <span
                             key={t.name}
-                            className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+                            className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-400/10 text-amber-300 border border-amber-400/20"
                           >
                             {t.name}()
                           </span>
@@ -321,9 +321,9 @@ export const ConnectorsView = ({ token }) => {
                     <button
                       onClick={() => handleTest(connector.id)}
                       disabled={testingId === connector.id}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center space-x-1.5"
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-[#080b11] hover:bg-[#1d273e] text-slate-200 border border-[#232f48] transition-all flex items-center space-x-1.5"
                     >
-                      <Activity className={`w-3.5 h-3.5 text-sky-400 ${testingId === connector.id ? 'animate-spin' : ''}`} />
+                      <Activity className={`w-3.5 h-3.5 text-amber-400 ${testingId === connector.id ? 'animate-spin' : ''}`} />
                       <span>{testingId === connector.id ? 'Pinging...' : 'Test Connection'}</span>
                     </button>
 
@@ -337,7 +337,7 @@ export const ConnectorsView = ({ token }) => {
                     ) : (
                       <button
                         onClick={() => handleConnect(connector.id)}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md shadow-sky-500/20 transition-all hover:scale-[1.02]"
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02]"
                       >
                         Connect
                       </button>
@@ -345,7 +345,7 @@ export const ConnectorsView = ({ token }) => {
 
                     <button
                       onClick={() => setExpandedConnector(isExpanded ? null : connector.id)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                      className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-[#080b11] transition-colors"
                       title="Toggle Configuration"
                     >
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -372,7 +372,7 @@ export const ConnectorsView = ({ token }) => {
                         <span>{testRes.message}</span>
                       </div>
                       {testRes.latency_ms && (
-                        <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-900/80 border border-emerald-500/30">
+                        <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#080b11] border border-emerald-500/30">
                           {testRes.latency_ms} ms latency
                         </span>
                       )}
@@ -382,9 +382,9 @@ export const ConnectorsView = ({ token }) => {
 
                 {/* Settings & Live Tool Playground Panel */}
                 {isExpanded && (
-                  <div className="border-t border-slate-800/80 p-5 bg-slate-950/40 space-y-4">
+                  <div className="border-t border-[#232f48] p-5 bg-[#080b11]/50 space-y-4">
                     <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      <Sliders className="w-3.5 h-3.5 text-sky-400" />
+                      <Sliders className="w-3.5 h-3.5 text-amber-400" />
                       <span>Connector Settings</span>
                     </div>
 
@@ -398,7 +398,7 @@ export const ConnectorsView = ({ token }) => {
                               <select
                                 value={configForms[connector.id]?.[field.key] || field.default || ''}
                                 onChange={(e) => handleConfigChange(connector.id, field.key, e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                                className="w-full px-3 py-2 rounded-xl bg-[#080b11] border border-[#232f48] text-xs text-slate-200 focus:outline-none focus:border-amber-400"
                               >
                                 {field.options.map((opt) => (
                                   <option key={opt} value={opt}>
@@ -412,7 +412,7 @@ export const ConnectorsView = ({ token }) => {
                                 value={configForms[connector.id]?.[field.key] || ''}
                                 onChange={(e) => handleConfigChange(connector.id, field.key, e.target.value)}
                                 placeholder={field.placeholder}
-                                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                                className="w-full px-3 py-2 rounded-xl bg-[#080b11] border border-[#232f48] text-xs text-slate-200 focus:outline-none focus:border-amber-400"
                               />
                             )}
                           </div>
@@ -423,7 +423,7 @@ export const ConnectorsView = ({ token }) => {
                     )}
 
                     {/* Live Playground */}
-                    <div className="pt-3 border-t border-slate-800/50 space-y-3">
+                    <div className="pt-3 border-t border-[#232f48] space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-300">Live Tool Playground</span>
                         <span className="text-[10px] text-slate-400">Execute query and inspect live response</span>
@@ -442,14 +442,14 @@ export const ConnectorsView = ({ token }) => {
                                 }))
                               }
                               placeholder={`Query topic for ${t.name}() (e.g. Astrophysics, Botany)...`}
-                              className="flex-1 w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                              className="flex-1 w-full px-3 py-1.5 rounded-xl bg-[#080b11] border border-[#232f48] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
                             />
                             <button
                               onClick={() => handleRunTool(connector.id, t.name)}
                               disabled={executingTool === `${connector.id}_${t.name}`}
-                              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-all flex items-center space-x-1.5 shrink-0"
+                              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-xs font-black text-slate-950 transition-all flex items-center space-x-1.5 shrink-0"
                             >
-                              <Play className="w-3 h-3" />
+                              <Play className="w-3 h-3 fill-slate-950" />
                               <span>{executingTool === `${connector.id}_${t.name}` ? 'Running...' : `Run ${t.name}()`}</span>
                             </button>
                           </div>
@@ -458,7 +458,7 @@ export const ConnectorsView = ({ token }) => {
 
                       {/* Tool Response */}
                       {toolRes && (
-                        <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 max-h-56 overflow-y-auto">
+                        <div className="p-3 rounded-xl bg-[#080b11] border border-[#232f48] max-h-56 overflow-y-auto">
                           <pre className="text-[11px] font-mono text-slate-300 whitespace-pre-wrap">
                             {JSON.stringify(toolRes, null, 2)}
                           </pre>
@@ -475,3 +475,4 @@ export const ConnectorsView = ({ token }) => {
     </div>
   );
 };
+

@@ -10,7 +10,7 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
 
   if (!mcqs || mcqs.length === 0) {
     return (
-      <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-12 text-center">
+      <div className="bg-[#141b2d] border border-[#232f48] rounded-2xl p-12 text-center">
         <HelpCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
         <h3 className="text-base font-bold text-slate-300">No Interactive Quiz Available</h3>
         <p className="text-xs text-slate-500 mt-1">
@@ -65,32 +65,32 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-6">
+    <div className="bg-[#141b2d] border border-[#232f48] rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-6">
       {/* Quiz Top Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#232f48]">
         <div>
           <div className="flex items-center space-x-2 mb-1">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-1">
-              <Award className="w-3 h-3" /> 20 Active Recall Questions
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20 flex items-center gap-1">
+              <Award className="w-3 h-3 text-amber-400" /> 20 Active Recall Questions
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight">Interactive Practice Exam</h2>
         </div>
 
         <div className="flex items-center space-x-3">
-          <label className="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer select-none bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800">
+          <label className="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer select-none bg-[#080b11] px-3 py-2 rounded-xl border border-[#232f48]">
             <input
               type="checkbox"
               checked={instantMode}
               onChange={(e) => setInstantMode(e.target.checked)}
-              className="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0 focus:ring-offset-0"
+              className="rounded bg-[#141b2d] border-[#232f48] text-amber-400 focus:ring-0 focus:ring-offset-0"
             />
             <span>Instant Validation Mode</span>
           </label>
 
           <button
             onClick={handleReset}
-            className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all"
+            className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-[#080b11] hover:bg-[#1d273e] text-slate-300 text-xs font-bold border border-[#232f48] transition-all"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset</span>
@@ -99,15 +99,15 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
       </div>
 
       {/* Score Header Banner */}
-      <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 rounded-xl bg-[#080b11] border border-[#232f48] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center justify-between text-xs font-bold mb-1.5">
             <span className="text-slate-300">Live Mastery Progress</span>
-            <span className="text-sky-400 font-extrabold">{score} / {mcqs.length} Correct ({percentage}%)</span>
+            <span className="text-amber-400 font-black">{score} / {mcqs.length} Correct ({percentage}%)</span>
           </div>
-          <div className="w-full h-2.5 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
+          <div className="w-full h-2.5 rounded-full bg-[#141b2d] overflow-hidden border border-[#232f48]">
             <div
-              className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-300"
+              className="h-full bg-gradient-to-r from-amber-400 to-amber-200 transition-all duration-300"
               style={{ width: `${(score / mcqs.length) * 100}%` }}
             />
           </div>
@@ -115,7 +115,7 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
 
         <button
           onClick={handleSaveToProfile}
-          className="py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-sky-500/20 shrink-0"
+          className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-amber-500/20 shrink-0"
         >
           <Save className="w-3.5 h-3.5" />
           <span>Save Quiz Score</span>
@@ -144,12 +144,12 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
                   ? isCorrect
                     ? 'border-emerald-500/30 bg-emerald-950/10'
                     : 'border-rose-500/30 bg-rose-950/10'
-                  : 'border-slate-800 bg-slate-950/40'
+                  : 'border-[#232f48] bg-[#080b11]/70'
               }`}
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-slate-800 text-sky-400 font-extrabold text-xs flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-[#141b2d] text-amber-400 font-black text-xs flex items-center justify-center border border-[#232f48]">
                     {idx + 1}
                   </span>
                   <span className="text-xs font-semibold text-slate-400">
@@ -180,7 +180,7 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
                   const isSelected = userChoice === opt.label;
                   const isAnswer = opt.label === mcq.correct_answer;
 
-                  let optClass = 'border-slate-800/80 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900';
+                  let optClass = 'border-[#232f48] bg-[#141b2d] text-slate-300 hover:border-amber-400/40 hover:bg-[#1d273e]';
 
                   if (showFeedback) {
                     if (isAnswer) {
@@ -189,7 +189,7 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
                       optClass = 'border-rose-500/50 bg-rose-950/30 text-rose-200';
                     }
                   } else if (isSelected) {
-                    optClass = 'border-sky-500 bg-sky-500/10 text-sky-300 font-semibold';
+                    optClass = 'border-amber-400 bg-amber-400/10 text-amber-300 font-semibold';
                   }
 
                   return (
@@ -199,7 +199,7 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
                       onClick={() => handleSelectOption(mcq.id, opt.label)}
                       className={`p-3 rounded-xl border text-left text-xs sm:text-sm flex items-start space-x-3 transition-all ${optClass}`}
                     >
-                      <span className="w-5 h-5 rounded-md bg-slate-800/80 text-slate-200 font-bold flex items-center justify-center shrink-0 text-xs">
+                      <span className="w-5 h-5 rounded-md bg-[#080b11] text-amber-300 font-bold flex items-center justify-center shrink-0 text-xs border border-[#232f48]">
                         {opt.label}
                       </span>
                       <span className="flex-1 leading-relaxed">{opt.text}</span>
@@ -210,8 +210,8 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
 
               {/* Explanation Dropdown */}
               {showFeedback && (
-                <div className="mt-3.5 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                  <span className="font-bold text-sky-400 block mb-1">💡 Pedagogical Explanation:</span>
+                <div className="mt-3.5 p-3.5 rounded-xl bg-[#141b2d] border border-[#232f48] text-xs text-slate-300 leading-relaxed">
+                  <span className="font-bold text-amber-400 block mb-1">💡 Pedagogical Explanation:</span>
                   {mcq.explanation}
                 </div>
               )}
@@ -222,3 +222,4 @@ export const InteractiveQuiz = ({ mcqs = [], packId, documentId, token }) => {
     </div>
   );
 };
+

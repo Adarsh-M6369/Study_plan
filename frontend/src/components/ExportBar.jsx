@@ -42,10 +42,10 @@ export const ExportBar = ({ studyPack }) => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-slate-900 via-sky-950/40 to-slate-900 border border-sky-500/30 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="bg-gradient-to-r from-[#080b11] via-[#141b2d] to-[#080b11] border border-amber-400/30 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
       <div>
         <div className="flex items-center space-x-2 mb-1">
-          <Sparkles className="w-4 h-4 text-sky-400" />
+          <Sparkles className="w-4 h-4 text-amber-400" />
           <h3 className="font-extrabold text-base text-slate-100">Study Guide Export Center</h3>
         </div>
         <p className="text-xs text-slate-400">
@@ -58,7 +58,7 @@ export const ExportBar = ({ studyPack }) => {
         <button
           onClick={handleExportPDF}
           disabled={downloadingPdf}
-          className="flex-1 md:flex-none px-5 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 disabled:opacity-50 transition-all hover:scale-[1.02]"
+          className="flex-1 md:flex-none px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all hover:scale-[1.02]"
         >
           {downloadingPdf ? (
             <>
@@ -82,7 +82,7 @@ export const ExportBar = ({ studyPack }) => {
         <button
           onClick={handleExportCSV}
           disabled={downloadingCsv || !studyPack.mcqs?.length}
-          className="flex-1 md:flex-none px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center space-x-2 shadow-md disabled:opacity-50 transition-all hover:scale-[1.02]"
+          className="flex-1 md:flex-none px-5 py-3 rounded-xl bg-[#141b2d] hover:bg-[#1d273e] text-slate-200 border border-[#232f48] font-bold text-xs flex items-center justify-center space-x-2 shadow-md disabled:opacity-50 transition-all hover:scale-[1.02]"
         >
           {downloadingCsv ? (
             <>
@@ -96,7 +96,7 @@ export const ExportBar = ({ studyPack }) => {
             </>
           ) : (
             <>
-              <Download className="w-4 h-4 text-sky-400" />
+              <Download className="w-4 h-4 text-amber-400" />
               <span>Export Anki/Quizlet CSV</span>
             </>
           )}
@@ -105,3 +105,4 @@ export const ExportBar = ({ studyPack }) => {
     </div>
   );
 };
+
