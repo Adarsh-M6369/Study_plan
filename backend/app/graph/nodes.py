@@ -14,6 +14,106 @@ from app.graph.state import AgentState
 logger = logging.getLogger("graph.nodes")
 
 
+def clean_plain_text(text: str) -> str:
+    """
+    Cleans any string to pure, plain, human-readable text without symbols,
+    markdown asterisks, hashes, em-dashes, or decorative bullet clutter.
+    """
+    if not text:
+        return ""
+    s = str(text)
+    # Replace em-dashes, en-dashes, and special dashes with a simple hyphen or space
+    s = re.sub(r"[\u2014\u2013\u2015\u2012\u2212]", " - ", s)
+    # Replace curly quotes and apostrophes with standard single/double quotes
+    s = re.sub(r"[\u2018\u2019\u201a\u201b]", "'", s)
+    s = re.sub(r"[\u201c\u201d\u201e\u201f]", '"', s)
+    # Replace decorative bullets, stars, icons
+    s = re.sub(r"[*★☆✦✧•◆◇■□▲▼►◄✓✔✗✘\u2022\u25cf\u25a0\u25aa\u25ab]+", " ", s)
+    # Remove markdown header hashes like ### or ## or # at line starts
+    s = re.sub(r"(?m)^#{1,6}\s*", "", s)
+    # Remove markdown bold/italic asterisks or underscores like **bold** or *italic*
+    s = re.sub(r"\*\*+(.*?)\*\*+", r"\1", s)
+    s = re.sub(r"\*+(.*?)\*+", r"\1", s)
+    s = re.sub(r"__+(.*?)__+", r"\1", s)
+    # Remove raw markdown links [text](url) -> text
+    s = re.sub(r"\[(.*?)\]\(https?://\S+\)", r"\1", s)
+    s = re.sub(r"https?://\S+|www\.\S+", "", s)
+    # Replace & with and
+    s = s.replace("&amp;", "and").replace("&", "and")
+    # Clean multiple spaces and multiple hyphens
+    s = re.sub(r"-\s*-+", "-", s)
+    s = re.sub(r"\s+-\s+", " - ", s)
+    s = re.sub(r"[ \t]+", " ", s)
+    # Clean leading/trailing spaces per line
+    lines = [line.strip() for line in s.splitlines()]
+    return "\n".join(lines).strip()
+
+
+def sanitize_study_pack_dict(pack_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively strips all symbols, markdown asterisks, hashes, and em-dashes
+    from all fields across the study pack to ensure pure plain text.
+    """
+    if not isinstance(pack_dict, dict):
+        return pack_dict
+
+    pack = dict(pack_dict)
+
+    if "title" in pack:
+        pack["title"] = clean_plain_text(pack["title"])
+    if "difficulty" in pack:
+        pack["difficulty"] = clean_plain_text(pack["difficulty"])
+    if "summary_notes" in pack:
+        pack["summary_notes"] = clean_plain_text(pack["summary_notes"])
+
+    if "roadmap" in pack and isinstance(pack["roadmap"], list):
+        clean_roadmap = []
+        for step in pack["roadmap"]:
+            clean_step = dict(step)
+            clean_step["topic"] = clean_plain_text(clean_step.get("topic", ""))
+            clean_step["action_item"] = clean_plain_text(clean_step.get("action_item", ""))
+            clean_roadmap.append(clean_step)
+        pack["roadmap"] = clean_roadmap
+
+    if "glossary" in pack and isinstance(pack["glossary"], list):
+        clean_glossary = []
+        for g in pack["glossary"]:
+            clean_g = dict(g)
+            clean_g["term"] = clean_plain_text(clean_g.get("term", ""))
+            clean_g["definition"] = clean_plain_text(clean_g.get("definition", ""))
+            clean_glossary.append(clean_g)
+        pack["glossary"] = clean_glossary
+
+    if "short_qas" in pack and isinstance(pack["short_qas"], list):
+        clean_qas = []
+        for qa in pack["short_qas"]:
+            clean_qa = dict(qa)
+            clean_qa["question"] = clean_plain_text(clean_qa.get("question", ""))
+            clean_qa["model_answer"] = clean_plain_text(clean_qa.get("model_answer", ""))
+            if "key_points" in clean_qa and isinstance(clean_qa["key_points"], list):
+                clean_qa["key_points"] = [clean_plain_text(p) for p in clean_qa["key_points"]]
+            clean_qas.append(clean_qa)
+        pack["short_qas"] = clean_qas
+
+    if "mcqs" in pack and isinstance(pack["mcqs"], list):
+        clean_mcqs = []
+        for mcq in pack["mcqs"]:
+            clean_m = dict(mcq)
+            clean_m["question"] = clean_plain_text(clean_m.get("question", ""))
+            clean_m["explanation"] = clean_plain_text(clean_m.get("explanation", ""))
+            if "options" in clean_m and isinstance(clean_m["options"], list):
+                clean_opts = []
+                for opt in clean_m["options"]:
+                    clean_opt = dict(opt)
+                    clean_opt["text"] = clean_plain_text(clean_opt.get("text", ""))
+                    clean_opts.append(clean_opt)
+                clean_m["options"] = clean_opts
+            clean_mcqs.append(clean_m)
+        pack["mcqs"] = clean_mcqs
+
+    return pack
+
+
 def clean_topic_title(raw_title: str) -> str:
     """
     Cleans raw filenames, URLs, underscores, and extension artifacts into a clean, human-readable academic topic.
@@ -31,8 +131,8 @@ def clean_topic_title(raw_title: str) -> str:
     text = re.sub(r"\.(pdf|docx?|txt|html?|epub|pptx?)$", "", text, flags=re.IGNORECASE)
     # Remove website domains
     text = re.sub(r"(?i)\b\w+\.(in|com|org|net|edu|gov|co)\b", "", text)
-    # Replace underscores and hyphens with spaces
-    text = text.replace("_", " ").replace("-", " ")
+    # Replace em-dashes and underscores with spaces
+    text = text.replace("—", " ").replace("–", " ").replace("_", " ").replace("-", " ")
     # Normalize duplicate consecutive words (e.g. English English English -> English)
     tokens = [t for t in text.split() if t.strip()]
     deduped = []
@@ -40,6 +140,7 @@ def clean_topic_title(raw_title: str) -> str:
         if not deduped or t.lower() != deduped[-1].lower():
             deduped.append(t)
     clean = " ".join(deduped).strip()
+    clean = clean_plain_text(clean)
     return clean if len(clean) > 2 else "Lesson Study Guide"
 
 
@@ -66,7 +167,7 @@ def clean_context_content(context_text: str) -> str:
     text = re.sub(r"([a-zA-Z])\.([A-Z])", r"\1. \2", text)
     # Strip standalone page markers like [Page X]:
     text = re.sub(r"\[Page\s+\d+\]:\s*", "", text)
-    return text.strip()
+    return clean_plain_text(text)
 
 
 def get_llm_with_fallback():
@@ -512,35 +613,42 @@ def _build_synthetic_study_pack(topic: str, difficulty: str, context: str) -> Di
     Guaranteed high-quality offline / failover study pack generator:
     Synthesizes questions strictly from lesson content, reading passages, and extracted chapter titles,
     evenly distributing questions across ALL identified chapters from the first to the last.
+    Produces pure plain text with zero markdown asterisks, hashes, em-dashes, or symbol clutter.
     """
-    all_chapters = _extract_all_chapter_names(context, topic)
+    raw_chapters = _extract_all_chapter_names(context, topic)
+    all_chapters = [clean_plain_text(ch) for ch in raw_chapters if clean_plain_text(ch)]
+    if not all_chapters:
+        all_chapters = ["Comprehensive Lesson Study Guide"]
+
     primary_chapter = all_chapters[0]
     sentences, key_terms = _extract_lesson_sentences_and_terms(context)
+    clean_terms = [clean_plain_text(t) for t in key_terms if clean_plain_text(t)]
 
-    summary_notes = f"""# {primary_chapter} - Comprehensive Multi-Chapter Study Guide ({difficulty} Level)
+    chapter_list_str = "\n".join([f"- {ch}" for ch in all_chapters[:6]])
 
-## 1. Whole-Document Overview & Syllabus Scope
-This comprehensive study guide spans across **{len(all_chapters)} key chapters/topics** identified in the material:
-{chr(10).join([f"- **{ch}**" for ch in all_chapters[:6]])}
+    summary_notes = f"""{primary_chapter} - Comprehensive Multi-Chapter Study Guide ({difficulty} Level)
 
-- **Core Academic Focus**: Deep comprehension across all sections, active recall, vocabulary mastery, and analytical problem-solving at the **{difficulty}** tier.
-- **Whole-Document Coverage**: The 20 MCQs and 5 Q&As below are balanced across all units from beginning to end.
+1. Whole-Document Overview and Syllabus Scope
+This comprehensive study guide spans across {len(all_chapters)} key chapters and topics identified in the material:
+{chapter_list_str}
 
-## 2. Key Academic Themes
-1. **Passage & Concept Mastery**: Main ideas, foundational mechanisms, and sequence of topics across units.
-2. **Contextual Terminology**: Analyzing key academic terms and their functional applications.
-3. **Synthesis & Comparative Analysis**: Connecting principles between introductory and advanced sections.
+- Core Academic Focus: Deep comprehension across all sections, active recall, vocabulary mastery, and analytical problem-solving at the {difficulty} tier.
+- Whole-Document Coverage: The 20 MCQs and 5 Q&As below are balanced across all units from beginning to end.
 
-## 3. Study & Revision Strategy
+2. Key Academic Themes
+1. Passage and Concept Mastery: Main ideas, foundational mechanisms, and sequence of topics across units.
+2. Contextual Terminology: Analyzing key academic terms and their functional applications.
+3. Synthesis and Comparative Analysis: Connecting principles between introductory and advanced sections.
+
+3. Study and Revision Strategy
 - Review the multi-chapter glossary definitions to build strong terminology recall.
 - Solve the 5 short questions sequentially before checking model answers.
-- Test your exam readiness across the entire curriculum with the 20 practice MCQs.
-"""
+- Test your exam readiness across the entire curriculum with the 20 practice MCQs."""
 
     roadmap = [
-        {"step_number": 1, "topic": f"Unit 1 Overview & Key Concepts ({primary_chapter})", "estimated_minutes": 20, "action_item": f"Review core definitions in {primary_chapter}."},
-        {"step_number": 2, "topic": f"Cross-Chapter Intermediate Concepts ({all_chapters[1] if len(all_chapters) > 1 else 'Advanced Mechanisms'})", "estimated_minutes": 35, "action_item": "Study summary notes and solve Short Q&As #1 to #3."},
-        {"step_number": 3, "topic": "Whole-Document Analytical Synthesis", "estimated_minutes": 30, "action_item": "Complete Short Q&As #4 & #5 without looking at model solutions."},
+        {"step_number": 1, "topic": f"Unit 1 Overview and Key Concepts ({primary_chapter})", "estimated_minutes": 20, "action_item": f"Review core definitions in {primary_chapter}."},
+        {"step_number": 2, "topic": f"Cross-Chapter Intermediate Concepts ({all_chapters[1] if len(all_chapters) > 1 else 'Advanced Mechanisms'})", "estimated_minutes": 35, "action_item": "Study summary notes and solve Short Q&As 1 to 3."},
+        {"step_number": 3, "topic": "Whole-Document Analytical Synthesis", "estimated_minutes": 30, "action_item": "Complete Short Q&As 4 and 5 without looking at model solutions."},
         {"step_number": 4, "topic": "Comprehensive Exam (20 MCQs across all chapters)", "estimated_minutes": 40, "action_item": "Take the interactive practice quiz and review explanation feedback."},
         {"step_number": 5, "topic": "Spaced Repetition Flashcards", "estimated_minutes": 15, "action_item": "Import the exported CSV flashcards into Anki for daily review."}
     ]
@@ -548,40 +656,40 @@ This comprehensive study guide spans across **{len(all_chapters)} key chapters/t
     glossary = [
         {
             "term": term,
-            "definition": f"An essential concept in '{all_chapters[idx % len(all_chapters)]}' representing key principles, functional mechanisms, or academic definitions."
+            "definition": f"An essential concept in {all_chapters[idx % len(all_chapters)]} representing key principles, functional mechanisms, or academic definitions."
         }
-        for idx, term in enumerate(key_terms[:10])
+        for idx, term in enumerate(clean_terms[:10])
     ]
 
     short_qas = [
         {
             "id": 1,
-            "question": f"What is the central theme and primary message conveyed in '{primary_chapter}'?",
-            "model_answer": f"The central theme in '{primary_chapter}' focuses on core academic principles, character development, and practical problem-solving as demonstrated throughout the opening sections.",
+            "question": f"What is the central theme and primary message conveyed in {primary_chapter}?",
+            "model_answer": f"The central theme in {primary_chapter} focuses on core academic principles, character development, and practical problem-solving as demonstrated throughout the opening sections.",
             "key_points": ["Clear identification of central message", "Supporting evidence from the lesson", "Application of core principles"]
         },
         {
             "id": 2,
-            "question": f"How do the concepts in '{all_chapters[1 % len(all_chapters)]}' build upon the introductory material?",
-            "model_answer": f"The passage develops the concept sequentially by introducing foundational ideas, illustrating them with practical examples, and reinforcing key learning outcomes across topics.",
+            "question": f"How do the concepts in {all_chapters[1 % len(all_chapters)]} build upon the introductory material?",
+            "model_answer": "The passage develops the concept sequentially by introducing foundational ideas, illustrating them with practical examples, and reinforcing key learning outcomes across topics.",
             "key_points": ["Sequential idea development", "Illustrative examples from context", "Reinforcement of key outcomes"]
         },
         {
             "id": 3,
-            "question": f"Explain the significance of the key terms introduced in '{all_chapters[2 % len(all_chapters)]}'.",
-            "model_answer": f"The key terms establish accurate vocabulary and conceptual clarity, enabling students to articulate ideas precisely and apply grammatical or scientific rules correctly.",
+            "question": f"Explain the significance of the key terms introduced in {all_chapters[2 % len(all_chapters)]}.",
+            "model_answer": "The key terms establish accurate vocabulary and conceptual clarity, enabling students to articulate ideas precisely and apply grammatical or scientific rules correctly.",
             "key_points": ["Precise terminology articulation", "Conceptual clarity", "Contextual application"]
         },
         {
             "id": 4,
-            "question": f"What analytical conclusions can be drawn from the later sections of the document?",
-            "model_answer": f"The document demonstrates that systematic analysis, careful observation, and adhering to core rules lead to effective understanding and problem resolution.",
+            "question": "What analytical conclusions can be drawn from the later sections of the document?",
+            "model_answer": "The document demonstrates that systematic analysis, careful observation, and adhering to core rules lead to effective understanding and problem resolution.",
             "key_points": ["Systematic analysis", "Evidence-based reasoning", "Actionable comprehension"]
         },
         {
             "id": 5,
-            "question": f"How can students best synthesize and apply the concepts learned across all chapters?",
-            "model_answer": f"Students should practice active recall, analyze context clues across different sections, and apply foundational rules systematically to new problem contexts.",
+            "question": "How can students best synthesize and apply the concepts learned across all chapters?",
+            "model_answer": "Students should practice active recall, analyze context clues across different sections, and apply foundational rules systematically to new problem contexts.",
             "key_points": ["Active recall application", "Cross-chapter context analysis", "Rule-based problem solving"]
         }
     ]
@@ -592,23 +700,23 @@ This comprehensive study guide spans across **{len(all_chapters)} key chapters/t
     for i in range(1, 21):
         correct_idx = (i - 1) % 4
         correct_letter = letters[correct_idx]
-        term_focus = key_terms[(i - 1) % len(key_terms)]
+        term_focus = clean_terms[(i - 1) % len(clean_terms)] if clean_terms else "Subject Concept"
         chapter_focus = all_chapters[(i - 1) % len(all_chapters)]
 
         question_templates = [
-            f"Question {i}: In the lesson '{chapter_focus}', what role does {term_focus} play?",
-            f"Question {i}: According to the lesson '{chapter_focus}', what is the primary significance of {term_focus}?",
-            f"Question {i}: In the context of '{chapter_focus}', which statement best describes {term_focus}?",
-            f"Question {i}: What key understanding does the lesson '{chapter_focus}' emphasize regarding {term_focus}?",
-            f"Question {i}: Based on the lesson '{chapter_focus}', how does {term_focus} contribute to the central theme?"
+            f"Question {i}: In the lesson {chapter_focus}, what role does {term_focus} play?",
+            f"Question {i}: According to the lesson {chapter_focus}, what is the primary significance of {term_focus}?",
+            f"Question {i}: In the context of {chapter_focus}, which statement best describes {term_focus}?",
+            f"Question {i}: What key understanding does the lesson {chapter_focus} emphasize regarding {term_focus}?",
+            f"Question {i}: Based on the lesson {chapter_focus}, how does {term_focus} contribute to the central theme?"
         ]
         q_text = question_templates[(i - 1) % len(question_templates)]
 
         options = [
             {"label": "A", "text": f"It highlights key actions, concepts, and central themes associated with {term_focus} in the lesson."},
-            {"label": "B", "text": f"It contradicts the core events and principles demonstrated in '{chapter_focus}'."},
-            {"label": "C", "text": f"It is an irrelevant detail with no academic significance to the lesson."},
-            {"label": "D", "text": f"It replaces factual observations with arbitrary assumptions."}
+            {"label": "B", "text": f"It contradicts the core events and principles demonstrated in {chapter_focus}."},
+            {"label": "C", "text": "It is an irrelevant detail with no academic significance to the lesson."},
+            {"label": "D", "text": "It replaces factual observations with arbitrary assumptions."}
         ]
 
         if correct_letter != "A":
@@ -626,11 +734,11 @@ This comprehensive study guide spans across **{len(all_chapters)} key chapters/t
                 {"label": "D", "text": options[3]["text"]}
             ],
             "correct_answer": correct_letter,
-            "explanation": f"Option {correct_letter} is correct because the lesson '{chapter_focus}' highlights {term_focus} as an important concept and character element essential to the passage.",
+            "explanation": f"Option {correct_letter} is correct because the lesson {chapter_focus} highlights {term_focus} as an important concept and character element essential to the passage.",
             "difficulty": difficulty
         })
 
-    return {
+    pack = {
         "title": f"Study Guide: {primary_chapter}",
         "difficulty": difficulty,
         "summary_notes": summary_notes,
@@ -639,6 +747,7 @@ This comprehensive study guide spans across **{len(all_chapters)} key chapters/t
         "short_qas": short_qas,
         "mcqs": mcqs
     }
+    return sanitize_study_pack_dict(pack)
 
 
 async def synthesis_node(state: AgentState) -> Dict[str, Any]:
@@ -649,6 +758,7 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
     - concise summary notes
     - key terms glossary
     - suggested study roadmap
+    Ensures all output is 100% clean plain text with no symbols or markdown asterisks/hashes.
     """
     difficulty = state.get("difficulty", "Intermediate")
     raw_topic = state.get("topic") or "Lesson Study Guide"
@@ -664,6 +774,11 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
             "- The study guide MUST cover the ENTIRE document.\n"
             "- Distribute the 20 MCQs, 5 short Q&As, and glossary evenly across ALL identified chapters, units, and major topics from the first chapter to the last.\n"
             "- Do not concentrate questions on a single page or single story. Ensure balanced representation of every major concept and chapter presented in the context.\n\n"
+            "CRITICAL PLAIN TEXT FORMATTING REQUIREMENT (NO SYMBOLS, NO ASTERISKS, NO HASHES):\n"
+            "- All questions, options, explanations, model answers, glossary definitions, roadmap items, and summary notes MUST be clean, readable, plain English text.\n"
+            "- DO NOT use markdown bold asterisks (**), italics (*), or heading hashes (###, ##) in questions, answers, or text.\n"
+            "- DO NOT use em-dashes (—) or en-dashes (–). Use standard hyphens (-) or spaces.\n"
+            "- DO NOT include decorative symbols, emojis, bullets, or quotation clutter.\n\n"
             "CRITICAL CONTENT & LESSON NAME GUIDELINES:\n"
             "- Base all questions, answers, glossary items, roadmap tasks, and summaries EXCLUSIVELY on core educational content, stories, reading passages, poems, characters, grammatical rules, and academic concepts.\n"
             "- When referencing lessons or chapters (e.g. 'In the lesson [Lesson Name], what role does [Character] play?'), ALWAYS use the real academic lesson, story, or unit title (e.g., 'Trip to Grandparents', 'Earth - The Desolated Home', 'The Farmer's Friend').\n"
@@ -675,7 +790,7 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
             "{\n"
             f'  "title": "Study Guide: {topic}",\n'
             f'  "difficulty": "{difficulty}",\n'
-            '  "summary_notes": "markdown text with headings and bullet points",\n'
+            '  "summary_notes": "clean plain text notes with section headings and bullet points",\n'
             '  "roadmap": [{"step_number": 1, "topic": "...", "estimated_minutes": 30, "action_item": "..."}],\n'
             '  "glossary": [{"term": "...", "definition": "..."}],\n'
             '  "short_qas": [{"id": 1, "question": "...", "model_answer": "...", "key_points": ["..."]}],\n'
@@ -698,7 +813,7 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
             "REQUIREMENTS:\n"
             "- Exactly 20 MCQs (ids 1 to 20) spanning from the beginning to the end of the material\n"
             "- Exactly 5 Short Q&As (ids 1 to 5)\n"
-            "- High quality markdown summary notes covering all sections\n"
+            "- Comprehensive summary notes covering all sections in clean plain text\n"
             "- Comprehensive glossary and 5-step roadmap."
         )
 
@@ -723,9 +838,11 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
             if content.endswith("```"):
                 content = content[:-3]
             parsed_data = json.loads(content.strip())
+            # Sanitize all strings to clean plain text
+            clean_parsed = sanitize_study_pack_dict(parsed_data)
             # Validate with Pydantic
-            validated_pack = StudyPack(**parsed_data)
-            logger.info("Successfully validated StudyPack from LLM output.")
+            validated_pack = StudyPack(**clean_parsed)
+            logger.info("Successfully validated StudyPack from LLM output with clean plain text.")
             return {
                 "structured_output": validated_pack.model_dump(),
                 "next_step": "end"
@@ -735,7 +852,8 @@ async def synthesis_node(state: AgentState) -> Dict[str, Any]:
 
     # Fallback to high-quality synthetic pack
     pack_data = _build_synthetic_study_pack(topic=topic, difficulty=difficulty, context=context)
-    validated_pack = StudyPack(**pack_data)
+    clean_pack = sanitize_study_pack_dict(pack_data)
+    validated_pack = StudyPack(**clean_pack)
 
     return {
         "structured_output": validated_pack.model_dump(),

@@ -93,26 +93,46 @@ export const getStudyHistory = async (token) => {
   return res.data;
 };
 
-export const exportPDF = async (studyPackData) => {
+export const exportPDF = async (studyPackData, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
   const res = await api.post('/api/export/pdf', studyPackData, {
+    headers,
     responseType: 'blob',
   });
+
+  if (res.data && res.data.type === 'application/json') {
+    const text = await res.data.text();
+    const errJson = JSON.parse(text);
+    throw new Error(errJson.detail || 'PDF generation failed on server');
+  }
+
   const blob = new Blob([res.data], { type: 'application/pdf' });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const fileName = `${(studyPackData.title || 'Study_Pack').replace(/\s+/g, '_').slice(0, 30)}_Study_Pack.pdf`;
-  link.setAttribute('download', fileName);
+  const rawTitle = studyPackData?.title || 'Study_Pack';
+  const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 30);
+  link.setAttribute('download', `${cleanTitle}_Study_Pack.pdf`);
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  return true;
 };
 
-export const exportCSV = async (mcqs) => {
+export const exportCSV = async (mcqs, token) => {
+  const headers = await getAuthHeaders(token, { 'Content-Type': 'application/json' });
   const res = await api.post('/api/export/csv', mcqs, {
+    headers,
     responseType: 'blob',
   });
+
+  if (res.data && res.data.type === 'application/json') {
+    const text = await res.data.text();
+    const errJson = JSON.parse(text);
+    throw new Error(errJson.detail || 'CSV export failed on server');
+  }
+
   const blob = new Blob([res.data], { type: 'text/csv' });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -121,7 +141,8 @@ export const exportCSV = async (mcqs) => {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  return true;
 };
 
 // ==========================================

@@ -1,3 +1,4 @@
+import re
 import logging
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
@@ -253,36 +254,48 @@ async def get_quiz_history(user: AuthenticatedUser = Depends(get_current_user)):
 
 
 @app.post("/api/export/pdf", tags=["Exports"])
-async def export_pdf(pack: StudyPack):
+async def export_pdf(pack: Dict[str, Any]):
     """
     Accepts the study pack JSON and streams a downloadable multi-page .pdf generated via ReportLab.
     """
     try:
-        pdf_stream = generate_study_pack_pdf(pack.model_dump())
-        filename = f"{pack.title.replace(' ', '_')[:30]}_Study_Pack.pdf"
+        pdf_stream = generate_study_pack_pdf(pack)
+        raw_title = str(pack.get("title") or "Study_Pack")
+        clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', raw_title)[:30]
+        filename = f"{clean_name}_Study_Pack.pdf"
         return StreamingResponse(
             pdf_stream,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
         )
     except Exception as e:
-        logger.error(f"Error compiling ReportLab PDF: {e}")
+        logger.error(f"Error compiling ReportLab PDF: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"PDF compilation error: {str(e)}")
 
 
 @app.post("/api/export/csv", tags=["Exports"])
-async def export_csv(mcqs: List[MCQItem]):
+async def export_csv(mcqs: List[Dict[str, Any]]):
     """
     Accepts the MCQs array and streams a downloadable 2-column HTML-formatted .csv for Anki / Quizlet.
     """
     try:
-        csv_data = generate_anki_csv([m.model_dump() for m in mcqs])
+        clean_mcqs = [m if isinstance(m, dict) else m.model_dump() for m in mcqs]
+        csv_data = generate_anki_csv(clean_mcqs)
         csv_bytes = csv_data.encode("utf-8")
         return StreamingResponse(
             iter([csv_bytes]),
             media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=Anki_Quizlet_Flashcards.csv"}
+            headers={
+                "Content-Disposition": 'attachment; filename="Anki_Quizlet_Flashcards.csv"',
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
         )
+    except Exception as e:
+        logger.error(f"Error compiling Anki CSV: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSV compilation error: {str(e)}")
     except Exception as e:
         logger.error(f"Error generating Anki CSV: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSV generation error: {str(e)}")

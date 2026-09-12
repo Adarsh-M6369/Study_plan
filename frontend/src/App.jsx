@@ -248,7 +248,7 @@ function AuthenticatedWorkspace({ backendHealth }) {
               {studyPack && (
                 <div className="space-y-8 animate-fadeIn">
                   {/* Download Bar */}
-                  <ExportBar studyPack={studyPack} />
+                  <ExportBar studyPack={studyPack} token={getToken} />
 
                   {/* Step 3: Summaries, Glossary & Roadmap */}
                   <section>
