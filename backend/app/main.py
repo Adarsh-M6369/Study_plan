@@ -82,12 +82,22 @@ async def startup_event():
     """Initializes MongoDB connection and creates multi-tenant indexes on startup."""
     logger.info("Starting Study Guide Generator API backend...")
     await init_mongo_connection()
+    if settings.is_langsmith_enabled:
+        logger.info(f"🎯 LangSmith Tracing: ENABLED (Project: {settings.LANGCHAIN_PROJECT}, Endpoint: {settings.LANGCHAIN_ENDPOINT})")
+    else:
+        logger.info("ℹ️ LangSmith Tracing: DISABLED (LANGCHAIN_API_KEY or LANGSMITH_API_KEY not configured)")
 
 
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint to verify backend status."""
-    return {"status": "ok", "service": "Study Guide Generator API", "auth": "Clerk JWT Enabled"}
+    return {
+        "status": "ok",
+        "service": "Study Guide Generator API",
+        "auth": "Clerk JWT Enabled",
+        "langsmith_tracing": "enabled" if settings.is_langsmith_enabled else "disabled",
+        "langsmith_project": settings.LANGCHAIN_PROJECT if settings.is_langsmith_enabled else None
+    }
 
 
 @app.post("/api/upload", response_model=UploadResponse, tags=["Document Ingestion"])
