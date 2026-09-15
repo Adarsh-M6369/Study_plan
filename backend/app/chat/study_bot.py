@@ -233,7 +233,16 @@ async def process_study_chat(
 
     if llm:
         try:
-            response = await llm.ainvoke(llm_messages)
+            trace_config = {
+                "run_name": "StudyBot Chat",
+                "tags": ["study-bot", f"user:{user_id}"],
+                "metadata": {
+                    "user_id": user_id,
+                    "document_id": document_id or "none",
+                    "sources_count": len(all_sources)
+                }
+            }
+            response = await llm.ainvoke(llm_messages, config=trace_config)
             reply_text = response.content.strip()
         except Exception as e:
             logger.error(f"Error calling LLM for study chat: {e}")

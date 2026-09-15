@@ -82,5 +82,17 @@ async def run_study_pack_pipeline(
         "error": None
     }
 
-    final_state = await graph.ainvoke(initial_state)
+    trace_config = {
+        "run_name": f"StudyPack - {topic or 'General'}",
+        "tags": ["studypack-pipeline", difficulty, f"user:{user_id}"],
+        "metadata": {
+            "user_id": user_id,
+            "document_id": document_id or "none",
+            "difficulty": difficulty,
+            "topic": topic or "General Lecture Notes"
+        }
+    }
+
+    final_state = await graph.ainvoke(initial_state, config=trace_config)
     return final_state.get("structured_output") or {}
+
