@@ -35,12 +35,13 @@ A full-stack, enterprise-grade AI study companion built with **FastAPI**, **Lang
    - **ReportLab PDF Engine**: Multi-page styled study pack PDF with roadmap timeline, 2-column glossary table, notes, and 20 MCQs with answer keys.
    - **Anki / Quizlet CSV Exporter**: 2-column HTML-formatted CSV ready for spaced repetition import.
 
-6. **Interactive Streamlit Frontend (5 Tabs)**:
-   - **Tab 1: Ingest Notes** (PDF with page verification + raw text paste).
-   - **Tab 2: Configure & Generate** (Difficulty selection & LangGraph trigger).
-   - **Tab 3: Study Pack View** (Roadmap, summary notes, glossary, 5 Q&As).
-   - **Tab 4: Interactive Quiz** (20 MCQs with instant feedback mode & live scoring).
-   - **Tab 5: Export Center** (Side-by-side downloads for PDF & Anki CSV).
+6. **Modern React Vite + Tailwind Frontend**:
+   - **Clerk Authentication Gate**: Social sign-in (Google, Facebook, GitHub) via `@clerk/clerk-react`.
+   - **Dual-Tab Ingestion Zone**: Drag-and-drop PDF upload (up to 150 pages) and raw text input.
+   - **Interactive Study Pack Studio**: Summary notes, responsive glossary table, and 5-step roadmap.
+   - **Interactive Quiz Studio**: 20 MCQs with instant feedback, explanations, and score tracking.
+   - **Collapsible Conceptual Q&As**: 5 analytical questions with expandable model solutions.
+   - **Export Bar**: Triggers for ReportLab PDF and Anki/Quizlet CSV downloads.
 
 ---
 
@@ -76,8 +77,8 @@ study-guide-generator/
 │       │
 │       ├── rag/
 │       │   ├── __init__.py
-│       │   ├── parser.py                # pypdf parsing, text cleaner, 15-page strict limit check
-│       │   ├── splitter.py              # Semantic / Recursive character text chunking
+│       │   ├── parser.py                # pypdf parsing, text cleaner, 150-page strict limit check
+│       │   ├── splitter.py              # Equidistant segment & chapter chunking
 │       │   └── store.py                 # Resilient Chroma / Vector search with retry & fallback
 │       │
 │       ├── mcp/
@@ -94,16 +95,27 @@ study-guide-generator/
 │           ├── request.py               # Ingestion & query request Pydantic models
 │           └── study_pack.py            # Schema for 20 MCQs, 5 Q&As, summary, glossary, roadmap
 │
-└── frontend/
-    ├── app.py                           # Main Streamlit dashboard (tabs, quiz UI, controls)
-    ├── auth.py                          # Clerk OAuth session handling & token storage
-    ├── components/
-    │   ├── upload_tab.py                # PDF upload widget and raw text fallbacks
-    │   ├── study_pack_view.py           # Summaries, key terms glossary, and study sequence
-    │   ├── quiz_view.py                 # Interactive MCQ practice cards with instant validation
-    │   └── download_buttons.py          # Streamlit triggers for ReportLab PDF & Anki CSV
-    └── utils/
-        └── api_client.py                # HTTP client connecting to http://127.0.0.1:8000
+└── frontend/                            # React + Vite + Tailwind CSS Application
+    ├── package.json
+    ├── vite.config.js
+    ├── index.html
+    ├── tailwind.config.js
+    ├── postcss.config.js
+    ├── .env                             # VITE_CLERK_PUBLISHABLE_KEY & VITE_API_URL
+    └── src/
+        ├── main.jsx                     # ClerkProvider wrapper
+        ├── App.jsx                      # Protected routes & main application state
+        ├── index.css                    # Tailwind directives
+        ├── components/
+        │   ├── Navbar.jsx               # Clerk UserButton, Auth triggers, and brand header
+        │   ├── IngestionZone.jsx        # Drag-and-drop PDF upload & raw text input tab
+        │   ├── DifficultySelector.jsx   # Beginner / Intermediate / Advanced toggle
+        │   ├── StudyPackDashboard.jsx   # Markdown summaries, glossary table, and study order
+        │   ├── InteractiveQuiz.jsx      # 20 MCQs with instant feedback & explanations
+        │   ├── ShortQACard.jsx          # 5 Short Q&As with collapsible model answers
+        │   └── ExportBar.jsx            # Triggers for PDF and Anki/Quizlet CSV downloads
+        └── services/
+            └── api.js                   # Axios client injecting Clerk session token in headers
 ```
 
 ---
@@ -112,7 +124,11 @@ study-guide-generator/
 
 ### 1. Install Dependencies
 ```bash
+# Backend
 pip install -r requirements.txt
+
+# Frontend
+cd frontend && npm install
 ```
 
 ### 2. Configure Environment Variables
@@ -122,7 +138,8 @@ GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
 MONGO_URL=mongodb+srv://...
 MONGO_URL_local=mongodb://127.0.0.1:27017
-JWT_SECRET_KEY=dev_jwt_secret_key_change_in_production
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+JWT_SECRET_KEY=your_jwt_secret_key
 ```
 
 ### 3. Launch Backend Server
@@ -133,8 +150,10 @@ python backend/server.py
 - API Docs & Swagger UI: `http://127.0.0.1:8000/docs`
 - Health Check: `http://127.0.0.1:8000/health`
 
-### 4. Launch Streamlit Frontend
+### 4. Launch React Frontend
 ```bash
-streamlit run frontend/app.py
+cd frontend
+npm run dev
 ```
-- Dashboard URL: `http://localhost:8501`
+- Web Application URL: `http://localhost:5173`
+

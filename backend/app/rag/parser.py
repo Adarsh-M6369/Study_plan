@@ -43,9 +43,75 @@ BOILERPLATE_KEYWORDS = [
 ]
 
 
+def is_valid_academic_chapter_title(title: str) -> bool:
+    """
+    Validates that an extracted string is a genuine, human-readable Chapter or Lesson Title
+    and rejects garbage layout stamps, timestamps, sentence fragments, instructional directives,
+    exercise headings, activity prompts, and fused text.
+    """
+    if not title:
+        return False
+    clean = title.strip(" \t\n\r:.-_#,;|?!\'\"")
+    if len(clean) < 3 or len(clean) > 50:
+        return False
+
+    clean_lower = clean.lower()
+
+    # Reject InDesign layout files, timestamps, dates, barcodes, metadata
+    if re.search(r"(?i)(\.indd|\.pdf|\d{2}[-/]\d{2}[-/]\d{4}|\d{2}:\d{2}(:\d{2})?|copyright|publisher|isbn|edition|author|review|committee)", clean):
+        return False
+
+    # Reject if it starts with lowercase or punctuation
+    if clean[0].islower() or clean[0] in ",.?!:;-":
+        return False
+
+    # Reject if single words are abnormally long with no spaces (e.g. isplannedforamonth)
+    for word in clean.split():
+        if len(word) > 16:
+            return False
+
+    # Reject instructional directives, exercise headings, activity prompts, questions, and sentence fragments
+    INSTRUCTIONAL_PREFIXES = (
+        "the following", "following", "answer the", "answer each", "answer all", "answer in",
+        "choose the", "choose correct", "fill in", "fill the", "match the", "tick the", "circle the",
+        "underline the", "read the", "write the", "write down", "listen to", "speak about", "talk about",
+        "look at", "think and", "discuss with", "complete the", "rearrange the", "identify the", "find out",
+        "connect the", "connect to", "who said", "say whether", "state whether", "put a tick", "put a",
+        "true or false", "give reason", "explain the", "name the", "try to", "note to", "teacher's note",
+        "learning outcome", "learning outcomes", "warm up", "let us", "let's", "we learn", "can you",
+        "do you", "which ", "what ", "why ", "how ", "where ", "when ", "is ", "are ", "based on",
+        "according to", "in this lesson", "in this unit", "questions will help", "question ", "questions "
+    )
+    if any(clean_lower.startswith(p) for p in INSTRUCTIONAL_PREFIXES):
+        return False
+
+    # Reject if containing instructional keywords
+    if re.search(r"(?i)\b(questions?|answers?|blanks?|exercises?|activities|activity|instructions?|worksheet|practice|options?|mcqs?|will\s+help|are\s+given|is\s+given|below\s+mentioned)\b", clean):
+        return False
+
+    # Reject generic textbook administrative headings
+    if clean_lower in {
+        "english", "tamil", "maths", "mathematics", "science", "social", "subject",
+        "lesson", "chapter", "unit", "introduction & overview", "part 1", "part 2",
+        "learning outcomes", "teacher's note", "warm up", "glossary", "let us read",
+        "let us know", "let us speak", "let us write", "book back exercise"
+    }:
+        return False
+
+    # Must contain mostly standard alphabetic letters
+    alpha_count = sum(1 for c in clean if c.isalpha())
+    if alpha_count / len(clean) < 0.6:
+        return False
+
+    return True
+
+
 def clean_text(raw_text: str) -> str:
     """
     Cleans and normalizes extracted PDF text:
+    - Strips InDesign layout margin tags and timestamps (e.g. Space.indd 1 26-04-2019 14:54:39)
+    - Removes decorative stars, bullets, and stray symbols in-between text
+    - Separates fused words and punctuation without spaces
     - Strips recurring headers/footers patterns
     - Removes statutory slogans, publisher boilerplate, and standalone numbers
     - Normalizes excessive whitespace
@@ -55,6 +121,18 @@ def clean_text(raw_text: str) -> str:
 
     # Replace weird unicode spaces or null bytes
     text = raw_text.replace("\x00", "").replace("\u00a0", " ")
+
+    # Strip InDesign printing tags (e.g., Space.indd 1 26-04-2019 14:54:39 or similar)
+    text = re.sub(r"(?i)\b[\w.-]+\.indd\b[^\n\r]*", "", text)
+    text = re.sub(r"\b\d{2}[-/]\d{2}[-/]\d{4}\s+\d{2}:\d{2}(:\d{2})?\b", "", text)
+
+    # Remove decorative stars, bullets, and stray non-standard symbols between words
+    text = re.sub(r"[*★☆✦✧•◆◇■□▲▼►◄✓✔✗✘\u2022\u25cf\u25a0]+", " ", text)
+
+    # Separate fused camelCase or stuck words (e.g. FarmersFriend -> Farmers Friend)
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"([a-zA-Z]),([a-zA-Z])", r"\1, \2", text)
+    text = re.sub(r"([a-zA-Z])\.([A-Z])", r"\1. \2", text)
 
     # Remove standard header/footer artifacts like 'Page X of Y' or 'Slide X'
     text = re.sub(r"(?i)\bpage\s+\d+(\s+of\s+\d+)?\b", "", text)
@@ -100,12 +178,44 @@ def is_front_matter_or_boilerplate(page_text: str, page_num: int, total_pages: i
     return False
 
 
-def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[str, List[Dict[str, Any]], int]:
+def detect_page_chapters(page_text: str) -> List[str]:
+    """
+    Detects structural landmarks such as Chapter, Unit, Section, Prose, Poem, or Topic headings.
+    Only returns validated, high-quality chapter titles.
+    """
+    if not page_text:
+        return []
+    landmarks = []
+    patterns = [
+        r"(?i)\b(?:Unit|Chapter|Prose|Poem|Supplementary|Section|Topic|Lesson)\s*[-–:]?\s*\d*\s*[-–:]?\s*([^\n\r]{3,45})",
+        r"(?i)\b(?:Prose|Poem|Story)\s*[-–:]\s*([^\n\r]{3,45})",
+        r"(?m)^#+\s*([^\n\r]{3,45})$",
+        r"(?i)\bTopic\s*:\s*([^\n\r]{3,45})"
+    ]
+    for pat in patterns:
+        matches = re.findall(pat, page_text)
+        for m in matches:
+            clean_m = m.strip(" \t\n\r:.-_#,;|?!\'\"")
+            if is_valid_academic_chapter_title(clean_m) and clean_m not in landmarks:
+                landmarks.append(clean_m)
+
+    # Check prominent standalone title lines (e.g. 'EARTH THE DESOLATED HOME', 'FARMER'S FRIEND')
+    lines = [line.strip() for line in page_text.splitlines() if line.strip()]
+    for line in lines[:5]:
+        clean_line = line.strip(" \t\n\r:.-_#,;|?!\'\"")
+        if 2 <= len(clean_line.split()) <= 6 and 4 <= len(clean_line) <= 40:
+            if is_valid_academic_chapter_title(clean_line.title()) and clean_line.title() not in landmarks:
+                landmarks.append(clean_line.title())
+
+    return landmarks
+
+
+def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[str, List[Dict[str, Any]], int, List[str]]:
     """
     Parses PDF bytes using pypdf.
     Enforces strict 150-page limit: raises HTTP 400 if page count > 150.
     Filters out front-matter pages, publisher notices, committee lists, and slogans.
-    Returns (full_cleaned_text, list_of_page_dicts, page_count).
+    Returns (full_cleaned_text, list_of_page_dicts, page_count, detected_chapters).
     """
     try:
         stream = io.BytesIO(pdf_bytes)
@@ -140,6 +250,8 @@ def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[s
     pages_data = []
     full_text_parts = []
     skipped_pages = []
+    detected_chapters = []
+    current_chapter = "Introduction & Overview"
 
     for idx, page in enumerate(reader.pages):
         page_num = idx + 1
@@ -158,10 +270,18 @@ def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[s
             skipped_pages.append(page_num)
             continue
 
+        page_landmarks = detect_page_chapters(cleaned)
+        if page_landmarks:
+            current_chapter = page_landmarks[0]
+            for lm in page_landmarks:
+                if lm not in detected_chapters:
+                    detected_chapters.append(lm)
+
         pages_data.append({
             "page_number": page_num,
             "text": cleaned,
-            "source": filename
+            "source": filename,
+            "chapter_title": current_chapter
         })
         full_text_parts.append(cleaned)
 
@@ -175,7 +295,8 @@ def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[s
                 pages_data.append({
                     "page_number": page_num,
                     "text": cleaned,
-                    "source": filename
+                    "source": filename,
+                    "chapter_title": f"Section {page_num}"
                 })
                 full_text_parts.append(cleaned)
 
@@ -186,5 +307,8 @@ def parse_pdf_bytes(pdf_bytes: bytes, filename: str = "document.pdf") -> Tuple[s
             detail="Could not extract any readable educational text from the uploaded PDF. Ensure it contains text and is not purely scanned images."
         )
 
-    logger.info(f"Extracted {len(pages_data)} educational pages (skipped {len(skipped_pages)} front-matter/boilerplate pages: {skipped_pages[:10]}).")
-    return full_cleaned_text, pages_data, page_count
+    if not detected_chapters:
+        detected_chapters = [f"Part {i+1}" for i in range(min(5, max(1, len(pages_data))))]
+
+    logger.info(f"Extracted {len(pages_data)} educational pages (skipped {len(skipped_pages)} front-matter/boilerplate pages; detected {len(detected_chapters)} chapters: {detected_chapters[:5]}).")
+    return full_cleaned_text, pages_data, page_count, detected_chapters

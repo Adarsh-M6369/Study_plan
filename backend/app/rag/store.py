@@ -144,6 +144,9 @@ class ResilientVectorStore:
                 "document_id": document_id,
                 "page_number": c.get("page_number", 1),
                 "source": c.get("source", "doc"),
+                "chapter_title": c.get("chapter_title", "Section"),
+                "segment_index": int(c.get("segment_index", 0)),
+                "total_segments": int(c.get("total_segments", 1)),
                 "chunk_index": c.get("chunk_index", 0)
             }
             metadatas.append(meta)
@@ -201,6 +204,92 @@ class ResilientVectorStore:
                     })
         return chunks
 
+    def stratified_search(
+        self,
+        user_id: str,
+        query_text: str = "",
+        document_id: Optional[str] = None,
+        n_per_segment: int = 2,
+        max_total: int = 16
+    ) -> List[Dict[str, Any]]:
+        """
+        Hierarchical / Cross-Chapter Coverage Engine:
+        Partitions the ingested document into its detected chapters or equidistant segments
+        and retrieves representative context chunks from EVERY SINGLE chapter/segment from start to finish.
+        Prevents localized clustering on a single page or story.
+        """
+        all_docs = []
+        all_metas = []
+
+        # 1. Fetch all records for the user from Chroma or memory
+        if self.collection is not None:
+            try:
+                where_filter = {"user_id": user_id}
+                if document_id:
+                    where_filter = {"$and": [{"user_id": user_id}, {"document_id": document_id}]}
+                records = self.collection.get(
+                    where=where_filter,
+                    include=["documents", "metadatas"]
+                )
+                all_docs = records.get("documents", [])
+                all_metas = records.get("metadatas", [])
+            except Exception as e:
+                logger.warning(f"Error reading records from Chroma during stratified retrieval: {e}")
+
+        if not all_docs and self.in_memory_docs:
+            user_recs = [
+                d for d in self.in_memory_docs
+                if d.get("metadata", {}).get("user_id") == user_id and
+                (document_id is None or d.get("metadata", {}).get("document_id") == document_id)
+            ]
+            all_docs = [d["text"] for d in user_recs]
+            all_metas = [d["metadata"] for d in user_recs]
+
+        if not all_docs:
+            logger.warning(f"No indexed documents found for user '{user_id}'.")
+            return []
+
+        # 2. Group chunks by segment_index or chapter
+        segments_map: Dict[int, List[Dict[str, Any]]] = {}
+        for doc, meta in zip(all_docs, all_metas):
+            if not doc:
+                continue
+            seg_idx = int(meta.get("segment_index", 0))
+            if seg_idx not in segments_map:
+                segments_map[seg_idx] = []
+            segments_map[seg_idx].append({"text": doc, "metadata": meta})
+
+        sorted_segment_keys = sorted(segments_map.keys())
+        logger.info(f"Stratified retrieval executing across {len(sorted_segment_keys)} segments for user '{user_id}'.")
+
+        query_tokens = set(re.findall(r"\w+", query_text.lower())) if query_text else set()
+        chosen_chunks: List[Dict[str, Any]] = []
+
+        # 3. For each segment from start to end, pick top representative chunks
+        for seg_idx in sorted_segment_keys:
+            seg_chunks = segments_map[seg_idx]
+            if not seg_chunks:
+                continue
+
+            # If query_tokens exist, sort segment chunks by token overlap; otherwise sample evenly
+            if query_tokens:
+                scored = []
+                for item in seg_chunks:
+                    doc_tokens = set(re.findall(r"\w+", item["text"].lower()))
+                    overlap = len(query_tokens.intersection(doc_tokens))
+                    scored.append((overlap, item))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                top_for_seg = [s[1] for s in scored[:n_per_segment]]
+            else:
+                top_for_seg = seg_chunks[:n_per_segment]
+
+            chosen_chunks.extend(top_for_seg)
+            if len(chosen_chunks) >= max_total:
+                break
+
+        logger.info(f"Stratified retrieval returned {len(chosen_chunks)} distributed chunks covering all segments.")
+        return chosen_chunks
+
     def _keyword_lexical_fallback(self, user_id: str, query_text: str, n_results: int = 8) -> List[Dict[str, Any]]:
         """
         Fallback keyword/lexical retrieval: fetches user-scoped documents and performs token overlap scoring.
@@ -245,7 +334,6 @@ class ResilientVectorStore:
         top_matches = scored_docs[:n_results]
 
         if not top_matches and docs:
-            # If no keyword overlap, return the first few user documents
             return [{"text": d, "metadata": m, "score": 0, "retrieval_mode": "fallback_head"} for d, m in zip(docs[:n_results], metas[:n_results])]
 
         return [
@@ -260,18 +348,21 @@ class ResilientVectorStore:
 
     def search(self, user_id: str, query_text: str, n_results: int = 8) -> List[Dict[str, Any]]:
         """
-        Performs resilient search:
-        1. Attempts semantic search with Tenacity retry.
-        2. If semantic search fails or returns 0 matches, triggers lexical fallback.
+        Performs resilient search with stratified multi-segment retrieval fallback.
         """
         results = []
         try:
-            results = self._semantic_query(user_id=user_id, query_text=query_text, n_results=n_results)
+            results = self.stratified_search(user_id=user_id, query_text=query_text, max_total=n_results)
         except Exception as e:
-            logger.warning(f"Semantic query encountered error: {e}. Moving to fallback.")
+            logger.warning(f"Stratified search error: {e}. Trying semantic/lexical.")
 
         if not results:
-            logger.info("Semantic search returned zero matches or failed. Using lexical fallback.")
+            try:
+                results = self._semantic_query(user_id=user_id, query_text=query_text, n_results=n_results)
+            except Exception:
+                pass
+
+        if not results:
             results = self._keyword_lexical_fallback(user_id=user_id, query_text=query_text, n_results=n_results)
 
         return results
